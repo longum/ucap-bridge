@@ -1,6 +1,6 @@
 # UCAP Bridge
 
-这是一个最小可用的 UCAP bridge 服务，用于接收合思出站消息，调用 UCAP `agent/chat` 判断审批结论，并在 EBot 场景下回调合思外部服务回调审批接口。
+这是一个最小可用的 UCAP bridge 服务，用于接收合思出站消息，立即返回接收成功，再异步调用 UCAP `agent/chat` 判断审批结论，并在 EBot 场景下回调合思外部服务回调审批接口。
 
 ## 功能
 
@@ -164,6 +164,18 @@ POST {ekuaibaoBaseUrl}/api/openapi/v1/approval?accessToken={accessToken}
 }
 ```
 
+`POST /invoke` 会先返回 HTTP 200：
+
+```json
+{
+  "success": true,
+  "accepted": true,
+  "traceId": "..."
+}
+```
+
+这个 200 表示 bridge 已接收合思出站消息。实际审批通过或驳回会在后台通过合思审批回调接口完成。
+
 ## 返回格式
 
 成功：
@@ -171,7 +183,7 @@ POST {ekuaibaoBaseUrl}/api/openapi/v1/approval?accessToken={accessToken}
 ```json
 {
   "success": true,
-  "content": "最终文本",
+  "accepted": true,
   "traceId": "..."
 }
 ```

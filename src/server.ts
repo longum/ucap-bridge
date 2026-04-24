@@ -39,6 +39,52 @@ function readRequiredString(body: unknown, fieldName: string): string | undefine
   return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 }
 
+async function processOutboundMessage(
+  config: BridgeConfig,
+  options: CreateServerOptions,
+  parsedBody: unknown,
+  input: string,
+  traceId: string
+): Promise<void> {
+  const upstream = await invokeUcapChat(config, input, { fetchImpl: options.fetchImpl });
+
+  if (upstream.status < 200 || upstream.status >= 300) {
+    throw new Error(`UCAP 返回非 2xx 状态码: ${upstream.status}`);
+  }
+
+  const extracted = extractBridgeContent(upstream, config);
+  if ("error" in extracted) {
+    throw new Error(extracted.error);
+  }
+
+  const flowId = readRequiredString(parsedBody, "flowId");
+  const nodeId = readRequiredString(parsedBody, "nodeId");
+  if (!flowId || !nodeId) {
+    return;
+  }
+
+  const decision = parseApprovalDecision(extracted.content);
+  const approval = await callbackApproval(
+    config,
+    {
+      flowId,
+      nodeId,
+      action: decision.action,
+      comment: decision.comment,
+    },
+    options.fetchImpl
+  );
+
+  if (approval.status < 200 || approval.status >= 300) {
+    throw new Error(`合思审批回调返回非 2xx 状态码: ${approval.status}`);
+  }
+
+  if (options.logger) {
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify({ traceId, action: decision.action, approved: decision.approved }));
+  }
+}
+
 export function createApp(config: BridgeConfig, options: CreateServerOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: options.logger ?? false,
@@ -93,72 +139,16 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
       });
     }
 
-    try {
-      const upstream = await invokeUcapChat(config, input, { fetchImpl: options.fetchImpl });
-
-      if (upstream.status < 200 || upstream.status >= 300) {
-        return reply.status(502).send({
-          success: false,
-          error: `UCAP 返回非 2xx 状态码: ${upstream.status}`,
-          traceId,
-        });
-      }
-
-      const extracted = extractBridgeContent(upstream, config);
-      if ("error" in extracted) {
-        return reply.status(502).send({
-          success: false,
-          error: extracted.error,
-          traceId,
-        });
-      }
-
-      const flowId = readRequiredString(parsedBody, "flowId");
-      const nodeId = readRequiredString(parsedBody, "nodeId");
-      if (flowId && nodeId) {
-        const decision = parseApprovalDecision(extracted.content);
-        const approval = await callbackApproval(
-          config,
-          {
-            flowId,
-            nodeId,
-            action: decision.action,
-            comment: decision.comment,
-          },
-          options.fetchImpl
-        );
-
-        if (approval.status < 200 || approval.status >= 300) {
-          return reply.status(502).send({
-            success: false,
-            error: `合思审批回调返回非 2xx 状态码: ${approval.status}`,
-            traceId,
-          });
-        }
-
-        return reply.send({
-          success: true,
-          action: decision.action,
-          approved: decision.approved,
-          comment: decision.comment,
-          approvalResponse: approval.bodyText,
-          traceId,
-        });
-      }
-
-      return reply.send({
-        success: true,
-        content: extracted.content,
-        traceId,
-      });
-    } catch (error) {
+    void processOutboundMessage(config, options, parsedBody, input, traceId).catch((error) => {
       const message = error instanceof Error ? error.message : "未知错误";
-      return reply.status(502).send({
-        success: false,
-        error: message,
-        traceId,
-      });
-    }
+      request.log.error({ traceId, error: message }, "处理合思出站消息失败");
+    });
+
+    return reply.send({
+      success: true,
+      accepted: true,
+      traceId,
+    });
   });
 
   return app;

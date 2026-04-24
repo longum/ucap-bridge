@@ -73,10 +73,13 @@ describe("errors", () => {
       },
     });
 
-    expect(response.statusCode).toBe(502);
+    expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      success: false,
-      error: expect.stringContaining("JSON 路径不存在"),
+      success: true,
+      accepted: true,
+    });
+    await vi.waitFor(() => {
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
     });
 
     await app.close();
@@ -152,7 +155,10 @@ describe("errors", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       success: true,
-      content: "ok",
+      accepted: true,
+    });
+    await vi.waitFor(() => {
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
     });
     expect(JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body))).toMatchObject({
       input: body,
@@ -222,11 +228,11 @@ describe("errors", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       success: true,
-      action: "accept",
-      approved: true,
-      comment: "符合规则",
+      accepted: true,
     });
-    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    await vi.waitFor(() => {
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+    });
     expect(String(fetchImpl.mock.calls[1]?.[0])).toContain("/api/openapi/v1/auth/getAccessToken");
     expect(JSON.parse(String((fetchImpl.mock.calls[1]?.[1] as RequestInit).body))).toMatchObject({
       appKey: "app-key",

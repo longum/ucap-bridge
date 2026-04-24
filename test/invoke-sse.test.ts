@@ -65,9 +65,11 @@ describe("invoke sse", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       success: true,
-      content: "你好",
+      accepted: true,
     });
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    });
     expect(JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body))).toMatchObject({
       agent_id: "agent-1",
       input: "你好",
