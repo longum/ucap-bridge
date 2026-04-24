@@ -1,5 +1,7 @@
 import Fastify, { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
+import { parseApprovalDecision } from "./approval";
+import { callbackApproval } from "./ekuaibaoClient";
 import { extractBridgeContent, getValueByPath } from "./extract";
 import { BridgeConfig } from "./types";
 import { invokeUcapChat, UcapClientOptions } from "./ucapClient";
@@ -26,6 +28,15 @@ function readInputFromBody(body: unknown, inputField: string, rawBody: string): 
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? value : undefined;
+}
+
+function readRequiredString(body: unknown, fieldName: string): string | undefined {
+  if (typeof body !== "object" || body === null) {
+    return undefined;
+  }
+
+  const value = (body as Record<string, unknown>)[fieldName];
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 }
 
 export function createApp(config: BridgeConfig, options: CreateServerOptions = {}): FastifyInstance {
@@ -98,6 +109,39 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
         return reply.status(502).send({
           success: false,
           error: extracted.error,
+          traceId,
+        });
+      }
+
+      const flowId = readRequiredString(parsedBody, "flowId");
+      const nodeId = readRequiredString(parsedBody, "nodeId");
+      if (flowId && nodeId) {
+        const decision = parseApprovalDecision(extracted.content);
+        const approval = await callbackApproval(
+          config,
+          {
+            flowId,
+            nodeId,
+            action: decision.action,
+            comment: decision.comment,
+          },
+          options.fetchImpl
+        );
+
+        if (approval.status < 200 || approval.status >= 300) {
+          return reply.status(502).send({
+            success: false,
+            error: `合思审批回调返回非 2xx 状态码: ${approval.status}`,
+            traceId,
+          });
+        }
+
+        return reply.send({
+          success: true,
+          action: decision.action,
+          approved: decision.approved,
+          comment: decision.comment,
+          approvalResponse: approval.bodyText,
           traceId,
         });
       }

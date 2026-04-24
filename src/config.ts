@@ -44,6 +44,12 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
   if (!isNonEmptyString(raw.signSecret)) {
     throw new Error("signSecret 缺失或无效");
   }
+  if (raw.ekuaibaoBaseUrl !== undefined && !isNonEmptyString(raw.ekuaibaoBaseUrl)) {
+    throw new Error("ekuaibaoBaseUrl 缺失或无效");
+  }
+  if (raw.ekuaibaoAccessToken !== undefined && !isNonEmptyString(raw.ekuaibaoAccessToken)) {
+    throw new Error("ekuaibaoAccessToken 缺失或无效");
+  }
   if (!isPositiveInteger(raw.requestTimeoutMs)) {
     throw new Error("requestTimeoutMs 缺失或无效");
   }
@@ -61,10 +67,16 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
   }
 
   let normalizedBaseUrl: string;
+  let normalizedEkuaibaoBaseUrl: string;
   try {
     normalizedBaseUrl = new URL(raw.ucapBaseUrl).toString().replace(/\/$/, "");
   } catch {
     throw new Error("ucapBaseUrl 必须是合法 URL");
+  }
+  try {
+    normalizedEkuaibaoBaseUrl = new URL((raw.ekuaibaoBaseUrl as string | undefined) ?? "https://app.ekuaibao.com").toString().replace(/\/$/, "");
+  } catch {
+    throw new Error("ekuaibaoBaseUrl 必须是合法 URL");
   }
 
   return {
@@ -73,6 +85,8 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
     apiKey: raw.apiKey,
     agentId: raw.agentId,
     signSecret: raw.signSecret,
+    ekuaibaoBaseUrl: normalizedEkuaibaoBaseUrl,
+    ekuaibaoAccessToken: isNonEmptyString(raw.ekuaibaoAccessToken) ? raw.ekuaibaoAccessToken : "",
     requireSignature: raw.requireSignature === undefined ? true : parseBoolean(raw.requireSignature, "requireSignature"),
     requestTimeoutMs: raw.requestTimeoutMs,
     inputField: raw.inputField,

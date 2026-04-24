@@ -6,6 +6,8 @@ export interface BridgeConfig {
   apiKey: string;
   agentId: string;
   signSecret: string;
+  ekuaibaoBaseUrl: string;
+  ekuaibaoAccessToken: string;
   requireSignature: boolean;
   requestTimeoutMs: number;
   inputField: string;
@@ -21,6 +23,8 @@ export interface RawConfig {
   apiKey?: unknown;
   agentId?: unknown;
   signSecret?: unknown;
+  ekuaibaoBaseUrl?: unknown;
+  ekuaibaoAccessToken?: unknown;
   requireSignature?: unknown;
   requestTimeoutMs?: unknown;
   inputField?: unknown;
@@ -47,4 +51,12 @@ export interface JsonErrorResult {
 
 export interface JsonSuccessResult {
   content: string;
+}
+
+export type ApprovalAction = "accept" | "refuse";
+
+export interface ApprovalDecision {
+  action: ApprovalAction;
+  comment: string;
+  approved: boolean;
 }

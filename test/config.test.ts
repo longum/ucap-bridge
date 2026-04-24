@@ -10,6 +10,8 @@ const baseConfig = {
   apiKey: "secret",
   agentId: "agent-1",
   signSecret: "sign-secret",
+  ekuaibaoBaseUrl: "https://app.ekuaibao.com",
+  ekuaibaoAccessToken: "access-token",
   requireSignature: true,
   requestTimeoutMs: 1000,
   inputField: "input",

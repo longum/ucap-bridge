@@ -9,6 +9,8 @@ const config: BridgeConfig = {
   apiKey: "secret",
   agentId: "agent-1",
   signSecret: "sign-secret",
+  ekuaibaoBaseUrl: "https://app.ekuaibao.com",
+  ekuaibaoAccessToken: "access-token",
   requireSignature: true,
   requestTimeoutMs: 1000,
   inputField: "input",
@@ -156,6 +158,73 @@ describe("errors", () => {
       parameters: {
         userChatInput: body,
       },
+    });
+
+    await app.close();
+  });
+
+  it("callbacks Ekuaibao approval when flowId and nodeId are present", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: { code: "204", message: "EBot执行完成" } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      );
+    const app = createApp(
+      {
+        ...config,
+        requireSignature: false,
+        inputField: "$body",
+      },
+      { fetchImpl }
+    );
+
+    const body = JSON.stringify({
+      action: "",
+      actionName: "",
+      flowId: "flow-1",
+      nodeId: "node-1",
+      userInfo: {
+        name: "张三",
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/invoke",
+      payload: body,
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      success: true,
+      action: "accept",
+      approved: true,
+      comment: "符合规则",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(String(fetchImpl.mock.calls[1]?.[0])).toContain("/api/openapi/v1/approval?accessToken=access-token");
+    expect(JSON.parse(String((fetchImpl.mock.calls[1]?.[1] as RequestInit).body))).toMatchObject({
+      signKey: "sign-secret",
+      flowId: "flow-1",
+      nodeId: "node-1",
+      action: "accept",
+      comment: "符合规则",
     });
 
     await app.close();

@@ -4,6 +4,8 @@
   "apiKey": "replace-me",
   "agentId": "replace-me",
   "signSecret": "replace-me",
+  "ekuaibaoBaseUrl": "https://app.ekuaibao.com",
+  "ekuaibaoAccessToken": "replace-me",
   "requireSignature": false,
   "requestTimeoutMs": 30000,
   "inputField": "$body",
