@@ -9,6 +9,7 @@ const config: BridgeConfig = {
   apiKey: "secret",
   agentId: "agent-1",
   signSecret: "sign-secret",
+  requireSignature: true,
   requestTimeoutMs: 1000,
   inputField: "input",
   responseMode: "auto",

@@ -14,6 +14,13 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function parseBoolean(value: unknown, fieldName: string): boolean {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  throw new Error(`${fieldName} 必须是布尔值`);
+}
+
 function parseResponseMode(value: unknown): ResponseMode {
   if (value === "auto" || value === "json" || value === "sse") {
     return value;
@@ -66,6 +73,7 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
     apiKey: raw.apiKey,
     agentId: raw.agentId,
     signSecret: raw.signSecret,
+    requireSignature: raw.requireSignature === undefined ? true : parseBoolean(raw.requireSignature, "requireSignature"),
     requestTimeoutMs: raw.requestTimeoutMs,
     inputField: raw.inputField,
     responseMode: parseResponseMode(raw.responseMode ?? "auto"),

@@ -1,6 +1,6 @@
 import Fastify, { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
-import { extractBridgeContent } from "./extract";
+import { extractBridgeContent, getValueByPath } from "./extract";
 import { BridgeConfig } from "./types";
 import { invokeUcapChat, UcapClientOptions } from "./ucapClient";
 import { verifyRequestSignature } from "./signature";
@@ -9,12 +9,17 @@ export interface CreateServerOptions extends UcapClientOptions {
   logger?: boolean;
 }
 
-function readInputFromBody(body: unknown, inputField: string): string | undefined {
+function readInputFromBody(body: unknown, inputField: string, rawBody: string): string | undefined {
+  if (inputField === "$body") {
+    const trimmed = rawBody.trim();
+    return trimmed.length > 0 ? rawBody : undefined;
+  }
+
   if (typeof body !== "object" || body === null) {
     return undefined;
   }
 
-  const value = (body as Record<string, unknown>)[inputField];
+  const value = inputField.includes(".") ? getValueByPath(body, inputField) : (body as Record<string, unknown>)[inputField];
   if (typeof value !== "string") {
     return undefined;
   }
@@ -46,7 +51,7 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
   app.post("/invoke", async (request, reply) => {
     const traceId = randomUUID();
     const rawBody = typeof request.body === "string" ? request.body : "";
-    const signatureResult = verifyRequestSignature(rawBody, request.headers, config);
+    const signatureResult = config.requireSignature ? verifyRequestSignature(rawBody, request.headers, config) : { ok: true as const };
 
     if (!signatureResult.ok) {
       return reply.status(401).send({
@@ -67,7 +72,7 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
       });
     }
 
-    const input = readInputFromBody(parsedBody, config.inputField);
+    const input = readInputFromBody(parsedBody, config.inputField, rawBody);
 
     if (!input) {
       return reply.status(400).send({

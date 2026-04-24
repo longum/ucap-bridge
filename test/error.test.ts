@@ -9,6 +9,7 @@ const config: BridgeConfig = {
   apiKey: "secret",
   agentId: "agent-1",
   signSecret: "sign-secret",
+  requireSignature: true,
   requestTimeoutMs: 1000,
   inputField: "input",
   responseMode: "auto",
@@ -100,6 +101,61 @@ describe("errors", () => {
     expect(response.json()).toMatchObject({
       success: false,
       error: expect.stringContaining("签名校验失败"),
+    });
+
+    await app.close();
+  });
+
+  it("accepts an arbitrary outbound body when signature is disabled and inputField is $body", async () => {
+    const fetchImpl = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: { answer: "ok" } }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      });
+    });
+    const app = createApp(
+      {
+        ...config,
+        requireSignature: false,
+        inputField: "$body",
+      },
+      { fetchImpl }
+    );
+
+    const body = JSON.stringify({
+      action: "",
+      actionName: "",
+      userInfo: {
+        id: "员工id",
+        name: "张三",
+        cellphone: "13111111111",
+        email: "123@qq.com",
+      },
+      flowId: "",
+      nodeId: "",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/invoke",
+      payload: body,
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      success: true,
+      content: "ok",
+    });
+    expect(JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body))).toMatchObject({
+      input: body,
+      parameters: {
+        userChatInput: body,
+      },
     });
 
     await app.close();

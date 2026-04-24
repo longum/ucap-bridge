@@ -6,6 +6,7 @@ export interface BridgeConfig {
   apiKey: string;
   agentId: string;
   signSecret: string;
+  requireSignature: boolean;
   requestTimeoutMs: number;
   inputField: string;
   responseMode: ResponseMode;
@@ -20,6 +21,7 @@ export interface RawConfig {
   apiKey?: unknown;
   agentId?: unknown;
   signSecret?: unknown;
+  requireSignature?: unknown;
   requestTimeoutMs?: unknown;
   inputField?: unknown;
   responseMode?: unknown;
