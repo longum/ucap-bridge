@@ -50,6 +50,12 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
   if (raw.ekuaibaoAccessToken !== undefined && !isNonEmptyString(raw.ekuaibaoAccessToken)) {
     throw new Error("ekuaibaoAccessToken 缺失或无效");
   }
+  if (raw.ekuaibaoAccessToken === undefined && !isNonEmptyString(raw.ekuaibaoAppKey)) {
+    throw new Error("ekuaibaoAppKey 缺失或无效");
+  }
+  if (raw.ekuaibaoAccessToken === undefined && !isNonEmptyString(raw.ekuaibaoAppSecurity)) {
+    throw new Error("ekuaibaoAppSecurity 缺失或无效");
+  }
   if (!isPositiveInteger(raw.requestTimeoutMs)) {
     throw new Error("requestTimeoutMs 缺失或无效");
   }
@@ -86,7 +92,9 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
     agentId: raw.agentId,
     signSecret: raw.signSecret,
     ekuaibaoBaseUrl: normalizedEkuaibaoBaseUrl,
-    ekuaibaoAccessToken: isNonEmptyString(raw.ekuaibaoAccessToken) ? raw.ekuaibaoAccessToken : "",
+    ekuaibaoAppKey: isNonEmptyString(raw.ekuaibaoAppKey) ? raw.ekuaibaoAppKey : "",
+    ekuaibaoAppSecurity: isNonEmptyString(raw.ekuaibaoAppSecurity) ? raw.ekuaibaoAppSecurity : "",
+    ekuaibaoAccessToken: isNonEmptyString(raw.ekuaibaoAccessToken) ? raw.ekuaibaoAccessToken : undefined,
     requireSignature: raw.requireSignature === undefined ? true : parseBoolean(raw.requireSignature, "requireSignature"),
     requestTimeoutMs: raw.requestTimeoutMs,
     inputField: raw.inputField,

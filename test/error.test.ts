@@ -10,7 +10,8 @@ const config: BridgeConfig = {
   agentId: "agent-1",
   signSecret: "sign-secret",
   ekuaibaoBaseUrl: "https://app.ekuaibao.com",
-  ekuaibaoAccessToken: "access-token",
+  ekuaibaoAppKey: "app-key",
+  ekuaibaoAppSecurity: "app-security",
   requireSignature: true,
   requestTimeoutMs: 1000,
   inputField: "input",
@@ -175,6 +176,14 @@ describe("errors", () => {
         })
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
         new Response(JSON.stringify({ value: { code: "204", message: "EBot执行完成" } }), {
           status: 200,
           headers: {
@@ -217,9 +226,14 @@ describe("errors", () => {
       approved: true,
       comment: "符合规则",
     });
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
-    expect(String(fetchImpl.mock.calls[1]?.[0])).toContain("/api/openapi/v1/approval?accessToken=access-token");
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(String(fetchImpl.mock.calls[1]?.[0])).toContain("/api/openapi/v1/auth/getAccessToken");
     expect(JSON.parse(String((fetchImpl.mock.calls[1]?.[1] as RequestInit).body))).toMatchObject({
+      appKey: "app-key",
+      appSecurity: "app-security",
+    });
+    expect(String(fetchImpl.mock.calls[2]?.[0])).toContain("/api/openapi/v1/approval?accessToken=access-token");
+    expect(JSON.parse(String((fetchImpl.mock.calls[2]?.[1] as RequestInit).body))).toMatchObject({
       signKey: "sign-secret",
       flowId: "flow-1",
       nodeId: "node-1",

@@ -7,7 +7,9 @@ export interface BridgeConfig {
   agentId: string;
   signSecret: string;
   ekuaibaoBaseUrl: string;
-  ekuaibaoAccessToken: string;
+  ekuaibaoAppKey: string;
+  ekuaibaoAppSecurity: string;
+  ekuaibaoAccessToken?: string;
   requireSignature: boolean;
   requestTimeoutMs: number;
   inputField: string;
@@ -24,6 +26,8 @@ export interface RawConfig {
   agentId?: unknown;
   signSecret?: unknown;
   ekuaibaoBaseUrl?: unknown;
+  ekuaibaoAppKey?: unknown;
+  ekuaibaoAppSecurity?: unknown;
   ekuaibaoAccessToken?: unknown;
   requireSignature?: unknown;
   requestTimeoutMs?: unknown;
