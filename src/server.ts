@@ -1,0 +1,122 @@
+import Fastify, { FastifyInstance } from "fastify";
+import { randomUUID } from "node:crypto";
+import { extractBridgeContent } from "./extract";
+import { BridgeConfig } from "./types";
+import { invokeUcapChat, UcapClientOptions } from "./ucapClient";
+import { verifyRequestSignature } from "./signature";
+
+export interface CreateServerOptions extends UcapClientOptions {
+  logger?: boolean;
+}
+
+function readInputFromBody(body: unknown, inputField: string): string | undefined {
+  if (typeof body !== "object" || body === null) {
+    return undefined;
+  }
+
+  const value = (body as Record<string, unknown>)[inputField];
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? value : undefined;
+}
+
+export function createApp(config: BridgeConfig, options: CreateServerOptions = {}): FastifyInstance {
+  const app = Fastify({
+    logger: options.logger ?? false,
+  });
+
+  app.addContentTypeParser(
+    "application/json",
+    { parseAs: "string" },
+    (request, body, done) => {
+      done(null, body);
+    }
+  );
+
+  app.get("/health", async () => {
+    return {
+      success: true,
+      status: "ok",
+    };
+  });
+
+  app.post("/invoke", async (request, reply) => {
+    const traceId = randomUUID();
+    const rawBody = typeof request.body === "string" ? request.body : "";
+    const signatureResult = verifyRequestSignature(rawBody, request.headers, config);
+
+    if (!signatureResult.ok) {
+      return reply.status(401).send({
+        success: false,
+        error: signatureResult.error,
+        traceId,
+      });
+    }
+
+    let parsedBody: unknown;
+    try {
+      parsedBody = JSON.parse(rawBody);
+    } catch {
+      return reply.status(400).send({
+        success: false,
+        error: "请求体不是合法 JSON",
+        traceId,
+      });
+    }
+
+    const input = readInputFromBody(parsedBody, config.inputField);
+
+    if (!input) {
+      return reply.status(400).send({
+        success: false,
+        error: `请求体缺少有效的 ${config.inputField} 字段`,
+        traceId,
+      });
+    }
+
+    try {
+      const upstream = await invokeUcapChat(config, input, { fetchImpl: options.fetchImpl });
+
+      if (upstream.status < 200 || upstream.status >= 300) {
+        return reply.status(502).send({
+          success: false,
+          error: `UCAP 返回非 2xx 状态码: ${upstream.status}`,
+          traceId,
+        });
+      }
+
+      const extracted = extractBridgeContent(upstream, config);
+      if ("error" in extracted) {
+        return reply.status(502).send({
+          success: false,
+          error: extracted.error,
+          traceId,
+        });
+      }
+
+      return reply.send({
+        success: true,
+        content: extracted.content,
+        traceId,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "未知错误";
+      return reply.status(502).send({
+        success: false,
+        error: message,
+        traceId,
+      });
+    }
+  });
+
+  return app;
+}
+
+export async function startServer(config: BridgeConfig, options: CreateServerOptions = {}): Promise<FastifyInstance> {
+  const app = createApp(config, options);
+  await app.listen({ port: config.listenPort, host: "0.0.0.0" });
+  return app;
+}

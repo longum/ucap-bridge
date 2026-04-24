@@ -1,0 +1,13 @@
+{
+  "listenPort": 3000,
+  "ucapBaseUrl": "https://ucap.example.com",
+  "apiKey": "replace-me",
+  "agentId": "replace-me",
+  "signSecret": "replace-me",
+  "requestTimeoutMs": 30000,
+  "inputField": "input",
+  "responseMode": "auto",
+  "jsonExtractPath": "data.answer",
+  "ucapParameters": {},
+  "ucapVars": {}
+}

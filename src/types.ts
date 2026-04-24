@@ -1,0 +1,48 @@
+export type ResponseMode = "auto" | "json" | "sse";
+
+export interface BridgeConfig {
+  listenPort: number;
+  ucapBaseUrl: string;
+  apiKey: string;
+  agentId: string;
+  signSecret: string;
+  requestTimeoutMs: number;
+  inputField: string;
+  responseMode: ResponseMode;
+  jsonExtractPath: string;
+  ucapParameters: Record<string, unknown>;
+  ucapVars: Record<string, unknown>;
+}
+
+export interface RawConfig {
+  listenPort?: unknown;
+  ucapBaseUrl?: unknown;
+  apiKey?: unknown;
+  agentId?: unknown;
+  signSecret?: unknown;
+  requestTimeoutMs?: unknown;
+  inputField?: unknown;
+  responseMode?: unknown;
+  jsonExtractPath?: unknown;
+  ucapParameters?: unknown;
+  ucapVars?: unknown;
+}
+
+export interface UcapUpstreamResponse {
+  status: number;
+  contentType: string;
+  bodyText: string;
+}
+
+export interface ExtractedContent {
+  content: string;
+  mode: "sse" | "json";
+}
+
+export interface JsonErrorResult {
+  error: string;
+}
+
+export interface JsonSuccessResult {
+  content: string;
+}
