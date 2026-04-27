@@ -1,5 +1,5 @@
 import { parseApprovalDecision } from "./approval";
-import { callbackApproval } from "./ekuaibaoClient";
+import { callbackApproval, getAccessToken } from "./ekuaibaoClient";
 import { extractBridgeContent } from "./extract";
 import { getValueByPath } from "./extract";
 import { TaskStore } from "./taskStore";
@@ -40,7 +40,17 @@ export function readInputFromBody(body: unknown, inputField: string, rawBody: st
 
 export async function processApprovalTask(config: BridgeConfig, task: ApprovalTask, options: TaskProcessorOptions = {}): Promise<void> {
   const parsedBody = JSON.parse(task.rawBody) as unknown;
-  const upstream = await invokeUcapChat(config, task.input, task.botId ? { botId: task.botId } : {}, { fetchImpl: options.fetchImpl });
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const accessToken = await getAccessToken(config, fetchImpl);
+  const upstream = await invokeUcapChat(
+    config,
+    task.input,
+    {
+      ...(task.botId ? { botId: task.botId } : {}),
+      accessToken,
+    },
+    { fetchImpl }
+  );
 
   if (upstream.status < 200 || upstream.status >= 300) {
     throw new Error(`UCAP 返回非 2xx 状态码: ${upstream.status}`);

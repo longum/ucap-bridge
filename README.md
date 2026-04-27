@@ -169,11 +169,19 @@ curl -X POST http://127.0.0.1:3000/invoke/finance-audit \
   "parameters": {
     "userChatInput": "你好"
   },
-  "vars": {}
+  "vars": {
+    "botId": "finance-audit",
+    "accessToken": "合思 accessToken"
+  }
 }
 ```
 
-如果你在 `config.json` 里配置了 `ucapVars`，它会原样作为 UCAP 请求体的 `vars` 字段；默认是空对象 `{}`。
+如果你在 `config.json` 里配置了 `ucapVars`，它会原样作为 UCAP 请求体的 `vars` 字段；默认是空对象 `{}`。bridge 还会额外注入：
+
+- `botId`: URL 里的 botId，例如 `/invoke/finance-audit`
+- `accessToken`: bridge 获取并缓存的合思 OpenAPI accessToken
+
+`accessToken` 会在 bridge 进程内缓存，并在快过期时重新获取。注意：这个 token 具备调用合思 OpenAPI 的权限，智能体平台里不要把它打印到公开日志。
 
 ### 智能体返回约定
 

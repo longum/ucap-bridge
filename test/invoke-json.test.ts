@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -6,6 +6,7 @@ import { createApp } from "../src/server";
 import { BridgeConfig } from "../src/types";
 import { buildRequestSignature } from "../src/signature";
 import { createMemoryTaskStore } from "./helpers";
+import { clearEkuaibaoTokenCache } from "../src/ekuaibaoClient";
 
 const config: BridgeConfig = {
   listenPort: 3000,
@@ -31,6 +32,10 @@ const config: BridgeConfig = {
   ucapParameters: {},
   ucapVars: {},
 };
+
+afterEach(() => {
+  clearEkuaibaoTokenCache();
+});
 
 describe("invoke json", () => {
   it("returns extracted JSON content", async () => {
@@ -105,7 +110,7 @@ describe("invoke json", () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
+        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
           status: 200,
           headers: {
             "content-type": "application/json",
@@ -113,7 +118,7 @@ describe("invoke json", () => {
         })
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
+        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
           status: 200,
           headers: {
             "content-type": "application/json",
@@ -154,9 +159,10 @@ describe("invoke json", () => {
     const worker = new ApprovalTaskWorker({ ...config, requireSignature: false, inputField: "$body" }, taskStore, { fetchImpl });
     await worker.tick();
 
-    const ucapBody = JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body));
+    const ucapBody = JSON.parse(String((fetchImpl.mock.calls[1]?.[1] as RequestInit).body));
     expect(ucapBody.vars).toMatchObject({
       botId: "bot-a",
+      accessToken: "access-token",
     });
 
     await app.close();

@@ -2,6 +2,13 @@ import { BridgeConfig } from "./types";
 
 const APPROVAL_PATH = "/api/openapi/v1/approval";
 const ACCESS_TOKEN_PATH = "/api/openapi/v1/auth/getAccessToken";
+const TOKEN_REFRESH_SKEW_MS = 5 * 60 * 1000;
+
+let cachedToken: EkuaibaoTokenResponse | undefined;
+
+export function clearEkuaibaoTokenCache(): void {
+  cachedToken = undefined;
+}
 
 export interface EkuaibaoApprovalRequest {
   flowId: string;
@@ -50,12 +57,15 @@ function parseApprovalResponseBody(bodyText: string): Pick<EkuaibaoApprovalRespo
   }
 }
 
-async function getAccessToken(
+export async function getAccessToken(
   config: Pick<BridgeConfig, "ekuaibaoBaseUrl" | "ekuaibaoAppKey" | "ekuaibaoAppSecurity" | "ekuaibaoAccessToken" | "requestTimeoutMs">,
   fetchImpl: typeof fetch
 ): Promise<string> {
   if (config.ekuaibaoAccessToken) {
     return config.ekuaibaoAccessToken;
+  }
+  if (cachedToken?.accessToken && (!cachedToken.expireTime || cachedToken.expireTime - Date.now() > TOKEN_REFRESH_SKEW_MS)) {
+    return cachedToken.accessToken;
   }
 
   const controller = new AbortController();
@@ -87,10 +97,21 @@ async function getAccessToken(
     }
 
     const value = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>).value : undefined;
-    const accessToken = typeof value === "object" && value !== null ? (value as Record<string, unknown>).accessToken : undefined;
+    const record = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
+    const accessToken = record?.accessToken;
     if (typeof accessToken !== "string" || accessToken.trim().length === 0) {
       throw new Error("获取合思 accessToken 失败: 响应缺少 value.accessToken");
     }
+    if (!record) {
+      throw new Error("获取合思 accessToken 失败: 响应缺少 value");
+    }
+
+    cachedToken = {
+      accessToken,
+      refreshToken: typeof record.refreshToken === "string" ? record.refreshToken : undefined,
+      expireTime: typeof record.expireTime === "number" ? record.expireTime : undefined,
+      corporationId: typeof record.corporationId === "string" ? record.corporationId : undefined,
+    };
 
     return accessToken;
   } finally {

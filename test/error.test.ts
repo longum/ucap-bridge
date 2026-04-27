@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/server";
 import { BridgeConfig } from "../src/types";
 import { buildRequestSignature } from "../src/signature";
 import { createMemoryTaskStore } from "./helpers";
 import { ApprovalTaskWorker } from "../src/taskProcessor";
+import { clearEkuaibaoTokenCache } from "../src/ekuaibaoClient";
 
 const config: BridgeConfig = {
   listenPort: 3000,
@@ -31,6 +32,10 @@ const config: BridgeConfig = {
 };
 
 describe("errors", () => {
+  afterEach(() => {
+    clearEkuaibaoTokenCache();
+  });
+
   it("does not expose the default /invoke endpoint", async () => {
     const taskStore = createMemoryTaskStore();
     const app = createApp(
@@ -187,7 +192,7 @@ describe("errors", () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
+        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
           status: 200,
           headers: {
             "content-type": "application/json",
@@ -195,7 +200,7 @@ describe("errors", () => {
         })
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
+        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
           status: 200,
           headers: {
             "content-type": "application/json",
@@ -248,11 +253,12 @@ describe("errors", () => {
     await worker.tick();
 
     expect(fetchImpl).toHaveBeenCalledTimes(3);
-    expect(String(fetchImpl.mock.calls[1]?.[0])).toContain("/api/openapi/v1/auth/getAccessToken");
-    expect(JSON.parse(String((fetchImpl.mock.calls[1]?.[1] as RequestInit).body))).toMatchObject({
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain("/api/openapi/v1/auth/getAccessToken");
+    expect(JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body))).toMatchObject({
       appKey: "app-key",
       appSecurity: "app-security",
     });
+    expect(String(fetchImpl.mock.calls[1]?.[0])).toContain("/mp/openapi/api/v3/agent/chat");
     expect(String(fetchImpl.mock.calls[2]?.[0])).toContain("/api/openapi/v1/approval?accessToken=access-token");
     expect(JSON.parse(String((fetchImpl.mock.calls[2]?.[1] as RequestInit).body))).toMatchObject({
       signKey: "bot-a-secret",
@@ -269,7 +275,7 @@ describe("errors", () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
+        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
           status: 200,
           headers: {
             "content-type": "application/json",
@@ -277,7 +283,7 @@ describe("errors", () => {
         })
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
+        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
           status: 200,
           headers: {
             "content-type": "application/json",
@@ -334,7 +340,7 @@ describe("errors", () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
+        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
           status: 200,
           headers: {
             "content-type": "application/json",
@@ -342,7 +348,7 @@ describe("errors", () => {
         })
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
+        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
           status: 200,
           headers: {
             "content-type": "application/json",
