@@ -50,7 +50,7 @@ cp config.example.json config.json
 - `responseMode`: `auto`、`json` 或 `sse`
 - `jsonExtractPath`: JSON 模式下提取最终文本的点路径，例如 `data.answer`
 - `ucapParameters`: 传给 UCAP 的 `parameters` 对象，桥接层会自动注入 `userChatInput`
-- `ucapVars`: 传给 UCAP 的 `vars` 对象
+- `ucapVars`: 传给 UCAP 的 `vars` 对象，默认空对象
 
 ## 安装
 
@@ -118,7 +118,7 @@ curl -X POST http://127.0.0.1:3000/invoke \
 }
 ```
 
-如果你在 `config.json` 里配置了 `ucapVars`，它会原样合并到 `vars` 字段里。
+如果你在 `config.json` 里配置了 `ucapVars`，它会原样作为 UCAP 请求体的 `vars` 字段；默认是空对象 `{}`。
 
 ### 智能体返回约定
 
