@@ -8,8 +8,12 @@ export interface InboundLogEntry {
   rawBody: string;
 }
 
-export async function appendInboundLog(logPath: string, entry: InboundLogEntry): Promise<void> {
+export async function appendJsonLine(logPath: string, entry: unknown): Promise<void> {
   const resolvedPath = path.resolve(process.cwd(), logPath);
   await fs.mkdir(path.dirname(resolvedPath), { recursive: true });
   await fs.appendFile(resolvedPath, `${JSON.stringify(entry)}\n`, "utf8");
+}
+
+export async function appendInboundLog(logPath: string, entry: InboundLogEntry): Promise<void> {
+  await appendJsonLine(logPath, entry);
 }

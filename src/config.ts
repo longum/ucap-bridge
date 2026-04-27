@@ -91,6 +91,9 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
   if (raw.inboundLogPath !== undefined && !isNonEmptyString(raw.inboundLogPath)) {
     throw new Error("inboundLogPath 缺失或无效");
   }
+  if (raw.ucapRequestLogPath !== undefined && !isNonEmptyString(raw.ucapRequestLogPath)) {
+    throw new Error("ucapRequestLogPath 缺失或无效");
+  }
   if (raw.taskMaxAttempts !== undefined && !isPositiveInteger(raw.taskMaxAttempts)) {
     throw new Error("taskMaxAttempts 缺失或无效");
   }
@@ -140,6 +143,8 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
     requireSignature: raw.requireSignature === undefined ? true : parseBoolean(raw.requireSignature, "requireSignature"),
     logInboundBody: raw.logInboundBody === undefined ? false : parseBoolean(raw.logInboundBody, "logInboundBody"),
     inboundLogPath: isNonEmptyString(raw.inboundLogPath) ? raw.inboundLogPath : "logs/inbound.log",
+    logUcapRequest: raw.logUcapRequest === undefined ? false : parseBoolean(raw.logUcapRequest, "logUcapRequest"),
+    ucapRequestLogPath: isNonEmptyString(raw.ucapRequestLogPath) ? raw.ucapRequestLogPath : "logs/ucap.log",
     requestTimeoutMs: raw.requestTimeoutMs,
     taskDbPath: isNonEmptyString(raw.taskDbPath) ? raw.taskDbPath : "data/bridge.sqlite",
     taskMaxAttempts: typeof raw.taskMaxAttempts === "number" ? raw.taskMaxAttempts : 5,

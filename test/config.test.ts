@@ -17,6 +17,8 @@ const baseConfig = {
   requireSignature: true,
   logInboundBody: false,
   inboundLogPath: "logs/inbound.log",
+  logUcapRequest: false,
+  ucapRequestLogPath: "logs/ucap.log",
   requestTimeoutMs: 1000,
   inputField: "input",
   responseMode: "auto",
@@ -36,6 +38,7 @@ describe("config", () => {
     expect(config.ucapBaseUrl).toBe("https://ucap.example.com");
     expect(config.responseMode).toBe("auto");
     expect(config.inboundLogPath).toBe("logs/inbound.log");
+    expect(config.ucapRequestLogPath).toBe("logs/ucap.log");
   });
 
   it("rejects invalid config", () => {

@@ -17,6 +17,8 @@ const config: BridgeConfig = {
   requireSignature: true,
   logInboundBody: false,
   inboundLogPath: "logs/inbound.log",
+  logUcapRequest: false,
+  ucapRequestLogPath: "logs/ucap.log",
   requestTimeoutMs: 1000,
   taskDbPath: "data/test.sqlite",
   taskMaxAttempts: 5,

@@ -16,6 +16,8 @@
   "requireSignature": false,
   "logInboundBody": false,
   "inboundLogPath": "logs/inbound.log",
+  "logUcapRequest": false,
+  "ucapRequestLogPath": "logs/ucap.log",
   "requestTimeoutMs": 30000,
   "taskDbPath": "data/bridge.sqlite",
   "taskMaxAttempts": 5,

@@ -55,6 +55,8 @@ cp config.example.json config.json
 - `requireSignature`: 是否校验调用本服务的入站签名；联调合思出站消息时可先设为 `false`
 - `logInboundBody`: 是否记录合思入站原始 body，默认 `false`
 - `inboundLogPath`: 入站请求文件日志路径，默认 `logs/inbound.log`
+- `logUcapRequest`: 是否记录发给 UCAP 智能体的请求体，默认 `false`
+- `ucapRequestLogPath`: UCAP 请求体文件日志路径，默认 `logs/ucap.log`
 - `requestTimeoutMs`: 上游请求超时时间
 - `taskDbPath`: 审批任务 SQLite 文件路径，默认 `data/bridge.sqlite`
 - `taskMaxAttempts`: 单个任务最大尝试次数
@@ -129,6 +131,25 @@ tail -f logs/inbound.log
 ```
 
 日志是一行一个 JSON，包含 `timestamp`、`traceId`、`botId`、`rawBody`。排查完成后建议把 `logInboundBody` 改回 `false`，避免日志里长期保存手机号、邮箱等敏感信息。
+
+### 查看传给智能体的内容
+
+如果需要临时记录 bridge 发给 UCAP 智能体的完整请求体，可以在 `config.json` 设置：
+
+```json
+{
+  "logUcapRequest": true,
+  "ucapRequestLogPath": "logs/ucap.log"
+}
+```
+
+改完配置后需要重启服务。之后可以在服务器上查看：
+
+```bash
+tail -f logs/ucap.log
+```
+
+日志是一行一个 JSON，包含 `timestamp` 和 `body`。`body` 就是发给 UCAP 的请求体，包含 `input`、`parameters`、`vars.botId`、`vars.accessToken` 等内容。排查完成后建议把 `logUcapRequest` 改回 `false`，因为日志里会保存合思 `accessToken`。
 
 ### 调用桥接接口
 

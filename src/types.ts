@@ -14,6 +14,8 @@ export interface BridgeConfig {
   requireSignature: boolean;
   logInboundBody: boolean;
   inboundLogPath: string;
+  logUcapRequest: boolean;
+  ucapRequestLogPath: string;
   requestTimeoutMs: number;
   taskDbPath: string;
   taskMaxAttempts: number;
@@ -40,6 +42,8 @@ export interface RawConfig {
   requireSignature?: unknown;
   logInboundBody?: unknown;
   inboundLogPath?: unknown;
+  logUcapRequest?: unknown;
+  ucapRequestLogPath?: unknown;
   requestTimeoutMs?: unknown;
   taskDbPath?: unknown;
   taskMaxAttempts?: unknown;

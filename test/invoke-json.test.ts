@@ -21,6 +21,8 @@ const config: BridgeConfig = {
   requireSignature: true,
   logInboundBody: false,
   inboundLogPath: "logs/inbound.log",
+  logUcapRequest: false,
+  ucapRequestLogPath: "logs/ucap.log",
   requestTimeoutMs: 1000,
   taskDbPath: "data/test.sqlite",
   taskMaxAttempts: 5,
@@ -161,6 +163,75 @@ describe("invoke json", () => {
 
     const ucapBody = JSON.parse(String((fetchImpl.mock.calls[1]?.[1] as RequestInit).body));
     expect(ucapBody.vars).toMatchObject({
+      botId: "bot-a",
+      accessToken: "access-token",
+    });
+
+    await app.close();
+  });
+
+  it("writes UCAP request body to a file when enabled", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: { code: "204", message: "EBot执行完成" } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      );
+    const taskStore = createMemoryTaskStore();
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ucap-bridge-ucap-log-"));
+    const ucapRequestLogPath = path.join(dir, "ucap.log");
+    const app = createApp(
+      {
+        ...config,
+        requireSignature: false,
+        inputField: "$body",
+        logUcapRequest: true,
+        ucapRequestLogPath,
+      },
+      { taskStore, startWorker: false }
+    );
+
+    await app.inject({
+      method: "POST",
+      url: "/invoke/bot-a",
+      payload: JSON.stringify({
+        flowId: "flow-1",
+        nodeId: "node-1",
+      }),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const { ApprovalTaskWorker } = await import("../src/taskProcessor");
+    const worker = new ApprovalTaskWorker({ ...config, requireSignature: false, inputField: "$body", logUcapRequest: true, ucapRequestLogPath }, taskStore, {
+      fetchImpl,
+    });
+    await worker.tick();
+
+    const logText = await fs.readFile(ucapRequestLogPath, "utf8");
+    const logEntry = JSON.parse(logText.trim());
+    expect(logEntry.body.vars).toMatchObject({
       botId: "bot-a",
       accessToken: "access-token",
     });

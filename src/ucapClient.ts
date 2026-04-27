@@ -1,4 +1,5 @@
 import { BridgeConfig, UcapUpstreamResponse } from "./types";
+import { appendJsonLine } from "./inboundLog";
 
 const UCAP_CHAT_PATH = "/mp/openapi/api/v3/agent/chat";
 
@@ -19,8 +20,27 @@ export async function invokeUcapChat(
   const fetchImpl = options.fetchImpl ?? fetch;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+  const requestBody = {
+    agent_id: config.agentId,
+    input,
+    parameters: {
+      ...config.ucapParameters,
+      userChatInput: input,
+    },
+    vars: {
+      ...config.ucapVars,
+      ...vars,
+    },
+  };
 
   try {
+    if (config.logUcapRequest) {
+      await appendJsonLine(config.ucapRequestLogPath, {
+        timestamp: new Date().toISOString(),
+        body: requestBody,
+      });
+    }
+
     const response = await fetchImpl(buildChatUrl(config.ucapBaseUrl), {
       method: "POST",
       headers: {
@@ -28,18 +48,7 @@ export async function invokeUcapChat(
         "Content-Type": "application/json",
         "x-api-key": config.apiKey,
       },
-      body: JSON.stringify({
-        agent_id: config.agentId,
-        input,
-        parameters: {
-          ...config.ucapParameters,
-          userChatInput: input,
-        },
-        vars: {
-          ...config.ucapVars,
-          ...vars,
-        },
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
