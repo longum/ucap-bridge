@@ -58,8 +58,12 @@ export async function processApprovalTask(config: BridgeConfig, task: ApprovalTa
   }
 
   const decision = parseApprovalDecision(extracted.content);
+  const callbackConfig = {
+    ...config,
+    signSecret: task.signSecret || config.signSecret,
+  };
   const approval = await callbackApproval(
-    config,
+    callbackConfig,
     {
       flowId,
       nodeId,

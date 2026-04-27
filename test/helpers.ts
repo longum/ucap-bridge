@@ -12,6 +12,7 @@ export function createMemoryTaskStore(): TaskStore & { tasks: ApprovalTask[] } {
         id: task.id,
         status: "pending",
         traceId: task.traceId,
+        signSecret: task.signSecret,
         rawBody: task.rawBody,
         input: task.input,
         attempts: 0,

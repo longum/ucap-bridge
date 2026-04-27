@@ -12,6 +12,29 @@ export interface CreateServerOptions extends UcapClientOptions {
   startWorker?: boolean;
 }
 
+function readBodyString(body: unknown, fieldName: string): string | undefined {
+  if (typeof body !== "object" || body === null) {
+    return undefined;
+  }
+  const value = (body as Record<string, unknown>)[fieldName];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function resolveSignSecret(config: BridgeConfig, body: unknown): string {
+  const candidates = [readBodyString(body, "botId"), readBodyString(body, "action"), readBodyString(body, "actionName")].filter(
+    (value): value is string => Boolean(value)
+  );
+
+  for (const candidate of candidates) {
+    const bot = config.outboundBots.find((item) => item.botId === candidate);
+    if (bot) {
+      return bot.signSecret;
+    }
+  }
+
+  return config.signSecret;
+}
+
 export function createApp(config: BridgeConfig, options: CreateServerOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: options.logger ?? false,
@@ -89,6 +112,7 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
     store.enqueue({
       id: randomUUID(),
       traceId,
+      signSecret: resolveSignSecret(config, parsedBody),
       rawBody,
       input,
       maxAttempts: config.taskMaxAttempts,

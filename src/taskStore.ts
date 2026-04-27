@@ -4,7 +4,7 @@ import path from "node:path";
 import { ApprovalTask, TaskStatus, TaskSummary } from "./types";
 
 export interface TaskStore {
-  enqueue(task: Pick<ApprovalTask, "id" | "traceId" | "rawBody" | "input" | "maxAttempts">): void;
+  enqueue(task: Pick<ApprovalTask, "id" | "traceId" | "signSecret" | "rawBody" | "input" | "maxAttempts">): void;
   claimNext(now: number): ApprovalTask | undefined;
   complete(id: string): void;
   fail(id: string, error: string, nextRunAt: number): void;
@@ -17,6 +17,7 @@ function rowToTask(row: Record<string, unknown>): ApprovalTask {
     id: String(row.id),
     status: row.status as ApprovalTask["status"],
     traceId: String(row.trace_id),
+    signSecret: String(row.sign_secret),
     rawBody: String(row.raw_body),
     input: String(row.input),
     attempts: Number(row.attempts),
@@ -39,6 +40,7 @@ export function createTaskStore(dbPath: string): TaskStore {
       id TEXT PRIMARY KEY,
       status TEXT NOT NULL,
       trace_id TEXT NOT NULL,
+      sign_secret TEXT NOT NULL DEFAULT '',
       raw_body TEXT NOT NULL,
       input TEXT NOT NULL,
       attempts INTEGER NOT NULL,
@@ -51,14 +53,19 @@ export function createTaskStore(dbPath: string): TaskStore {
     CREATE INDEX IF NOT EXISTS idx_approval_tasks_status_next_run_at
       ON approval_tasks(status, next_run_at);
   `);
+  const columns = db.prepare("PRAGMA table_info(approval_tasks)").all() as Array<{ name: string }>;
+  if (!columns.some((column) => column.name === "sign_secret")) {
+    db.prepare("ALTER TABLE approval_tasks ADD COLUMN sign_secret TEXT NOT NULL DEFAULT ''").run();
+    db.prepare("UPDATE approval_tasks SET sign_secret = '' WHERE sign_secret IS NULL").run();
+  }
 
   db.prepare("UPDATE approval_tasks SET status = 'pending', updated_at = ? WHERE status = 'processing'").run(Date.now());
 
   const insert = db.prepare(`
     INSERT INTO approval_tasks (
-      id, status, trace_id, raw_body, input, attempts, max_attempts, next_run_at, created_at, updated_at
+      id, status, trace_id, sign_secret, raw_body, input, attempts, max_attempts, next_run_at, created_at, updated_at
     ) VALUES (
-      @id, 'pending', @traceId, @rawBody, @input, 0, @maxAttempts, @now, @now, @now
+      @id, 'pending', @traceId, @signSecret, @rawBody, @input, 0, @maxAttempts, @now, @now, @now
     )
   `);
   const selectNext = db.prepare(`

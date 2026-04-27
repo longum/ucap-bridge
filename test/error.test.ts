@@ -11,6 +11,7 @@ const config: BridgeConfig = {
   apiKey: "secret",
   agentId: "agent-1",
   signSecret: "sign-secret",
+  outboundBots: [{ botId: "bot-a", signSecret: "bot-a-secret" }, { botId: "bot-b", signSecret: "bot-b-secret" }],
   ekuaibaoBaseUrl: "https://app.ekuaibao.com",
   ekuaibaoAppKey: "app-key",
   ekuaibaoAppSecurity: "app-security",
@@ -297,6 +298,67 @@ describe("errors", () => {
     expect(taskStore.tasks[0]).toMatchObject({
       status: "failed",
       lastError: expect.stringContaining("签名秘钥错误"),
+    });
+
+    await app.close();
+  });
+
+  it("uses the outbound bot sign secret selected by botId", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: { code: "204", message: "EBot执行完成" } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      );
+    const taskStore = createMemoryTaskStore();
+    const app = createApp(
+      {
+        ...config,
+        requireSignature: false,
+        inputField: "$body",
+      },
+      { taskStore, startWorker: false }
+    );
+
+    await app.inject({
+      method: "POST",
+      url: "/invoke",
+      payload: JSON.stringify({
+        botId: "bot-b",
+        flowId: "flow-1",
+        nodeId: "node-1",
+      }),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const worker = new ApprovalTaskWorker({ ...config, requireSignature: false, inputField: "$body" }, taskStore, { fetchImpl });
+    await worker.tick();
+
+    expect(JSON.parse(String((fetchImpl.mock.calls[2]?.[1] as RequestInit).body))).toMatchObject({
+      signKey: "bot-b-secret",
+      action: "accept",
     });
 
     await app.close();

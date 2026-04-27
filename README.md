@@ -48,6 +48,7 @@ cp config.example.json config.json
 - `apiKey`: UCAP 的 `x-api-key`
 - `agentId`: UCAP agent id
 - `signSecret`: 合思出站消息配置里的签名密钥，回调审批时作为 `signKey`
+- `outboundBots`: 多个合思出站 bot 的签名密钥配置；每个 bot 配一个 `botId` 和 `signSecret`
 - `ekuaibaoBaseUrl`: 合思 OpenAPI 地址，默认可用 `https://app.ekuaibao.com`
 - `ekuaibaoAppKey`: 合思开放接口接入账号，用于获取 `accessToken`
 - `ekuaibaoAppSecurity`: 合思开放接口接入密码，用于获取 `accessToken`
@@ -170,6 +171,27 @@ curl -X POST http://127.0.0.1:3000/invoke \
 bridge 会把 `approved=true` 转成合思回调审批接口的 `action=accept`，把 `approved=false` 转成 `action=refuse`，并把 `reason` 作为审批意见 `comment`。
 
 如果智能体没有返回合法 JSON、`approved` 不是 boolean，或 `reason` 为空，bridge 会按审核不通过处理并回调 `action=refuse`，避免格式异常时误通过。
+
+### 多个出站审批
+
+如果在合思里配置多个 EBot/出站审批，每个出站消息会有不同的签名密钥。可以在 `config.json` 配置：
+
+```json
+{
+  "outboundBots": [
+    {
+      "botId": "finance-audit",
+      "signSecret": "OH31Y6CPYFSP"
+    },
+    {
+      "botId": "travel-audit",
+      "signSecret": "another-sign-key"
+    }
+  ]
+}
+```
+
+合思出站消息字段里需要带上一个能区分 bot 的字段，推荐叫 `botId`。bridge 会优先按 `botId` 匹配；如果没有 `botId`，会尝试用 `action` 或 `actionName` 匹配。匹配不到时使用顶层 `signSecret` 兼容单 bot 配置。
 
 ### 合思审批回调
 

@@ -4,6 +4,12 @@
   "apiKey": "replace-me",
   "agentId": "replace-me",
   "signSecret": "replace-me",
+  "outboundBots": [
+    {
+      "botId": "default",
+      "signSecret": "replace-me"
+    }
+  ],
   "ekuaibaoBaseUrl": "https://app.ekuaibao.com",
   "ekuaibaoAppKey": "replace-me",
   "ekuaibaoAppSecurity": "replace-me",

@@ -9,6 +9,7 @@ const config: BridgeConfig = {
   apiKey: "secret",
   agentId: "agent-1",
   signSecret: "sign-secret",
+  outboundBots: [{ botId: "bot-a", signSecret: "bot-a-secret" }, { botId: "bot-b", signSecret: "bot-b-secret" }],
   ekuaibaoBaseUrl: "https://app.ekuaibao.com",
   ekuaibaoAppKey: "app-key",
   ekuaibaoAppSecurity: "app-security",

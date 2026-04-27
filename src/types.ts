@@ -6,6 +6,7 @@ export interface BridgeConfig {
   apiKey: string;
   agentId: string;
   signSecret: string;
+  outboundBots: OutboundBotConfig[];
   ekuaibaoBaseUrl: string;
   ekuaibaoAppKey: string;
   ekuaibaoAppSecurity: string;
@@ -29,6 +30,7 @@ export interface RawConfig {
   apiKey?: unknown;
   agentId?: unknown;
   signSecret?: unknown;
+  outboundBots?: unknown;
   ekuaibaoBaseUrl?: unknown;
   ekuaibaoAppKey?: unknown;
   ekuaibaoAppSecurity?: unknown;
@@ -79,6 +81,7 @@ export interface ApprovalTask {
   id: string;
   status: TaskStatus;
   traceId: string;
+  signSecret: string;
   rawBody: string;
   input: string;
   attempts: number;
@@ -93,4 +96,9 @@ export interface TaskSummary {
   counts: Record<TaskStatus, number>;
   oldestPendingAgeMs: number | null;
   recentFailures: Array<Pick<ApprovalTask, "id" | "traceId" | "status" | "attempts" | "maxAttempts" | "lastError" | "updatedAt">>;
+}
+
+export interface OutboundBotConfig {
+  botId: string;
+  signSecret: string;
 }

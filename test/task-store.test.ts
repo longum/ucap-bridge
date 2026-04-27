@@ -7,6 +7,7 @@ describe("task store", () => {
     store.enqueue({
       id: "task-1",
       traceId: "trace-1",
+      signSecret: "sign-secret",
       rawBody: "{}",
       input: "{}",
       maxAttempts: 2,
