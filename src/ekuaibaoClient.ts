@@ -13,6 +13,8 @@ export interface EkuaibaoApprovalRequest {
 export interface EkuaibaoApprovalResponse {
   status: number;
   bodyText: string;
+  code?: string;
+  message?: string;
 }
 
 export interface EkuaibaoTokenResponse {
@@ -24,6 +26,28 @@ export interface EkuaibaoTokenResponse {
 
 function buildUrl(baseUrl: string, path: string): URL {
   return new URL(path, `${baseUrl}/`);
+}
+
+function parseApprovalResponseBody(bodyText: string): Pick<EkuaibaoApprovalResponse, "code" | "message"> {
+  try {
+    const parsed = JSON.parse(bodyText) as unknown;
+    if (typeof parsed !== "object" || parsed === null) {
+      return {};
+    }
+
+    const value = (parsed as Record<string, unknown>).value;
+    if (typeof value !== "object" || value === null) {
+      return {};
+    }
+
+    const record = value as Record<string, unknown>;
+    return {
+      code: typeof record.code === "string" ? record.code : undefined,
+      message: typeof record.message === "string" ? record.message : undefined,
+    };
+  } catch {
+    return {};
+  }
 }
 
 async function getAccessToken(
@@ -106,9 +130,12 @@ export async function callbackApproval(
       signal: controller.signal,
     });
 
+    const bodyText = await response.text();
+    const parsedBody = parseApprovalResponseBody(bodyText);
     return {
       status: response.status,
-      bodyText: await response.text(),
+      bodyText,
+      ...parsedBody,
     };
   } finally {
     clearTimeout(timeout);

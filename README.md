@@ -193,6 +193,8 @@ POST {ekuaibaoBaseUrl}/api/openapi/v1/approval?accessToken={accessToken}
 }
 ```
 
+合思回调审批接口返回 HTTP 200 还不够，bridge 会继续检查响应体里的 `value.code`。只有 `value.code` 等于 `"204"` 时才把任务标记为完成；如果是 `"400"`、`"401"`、`"412"` 或 `"500"`，任务会按失败处理并进入重试/失败状态。
+
 `POST /invoke` 会先返回 HTTP 200：
 
 ```json

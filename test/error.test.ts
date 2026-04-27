@@ -236,4 +236,69 @@ describe("errors", () => {
 
     await app.close();
   });
+
+  it("does not complete a task when Ekuaibao approval returns a non-204 business code", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { answer: JSON.stringify({ approved: true, reason: "符合规则" }) } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: { accessToken: "access-token" } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: { code: "401", message: "签名秘钥错误" } }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        })
+      );
+    const taskStore = createMemoryTaskStore();
+    const app = createApp(
+      {
+        ...config,
+        requireSignature: false,
+        inputField: "$body",
+        taskMaxAttempts: 1,
+      },
+      { taskStore, startWorker: false }
+    );
+
+    const body = JSON.stringify({
+      flowId: "flow-1",
+      nodeId: "node-1",
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/invoke",
+      payload: body,
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const worker = new ApprovalTaskWorker({ ...config, requireSignature: false, inputField: "$body", taskMaxAttempts: 1 }, taskStore, {
+      fetchImpl,
+    });
+    await worker.tick();
+
+    expect(taskStore.tasks[0]).toMatchObject({
+      status: "failed",
+      lastError: expect.stringContaining("签名秘钥错误"),
+    });
+
+    await app.close();
+  });
 });

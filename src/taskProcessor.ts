@@ -73,6 +73,10 @@ export async function processApprovalTask(config: BridgeConfig, task: ApprovalTa
     throw new Error(`合思审批回调返回非 2xx 状态码: ${approval.status}`);
   }
 
+  if (approval.code !== "204") {
+    throw new Error(`合思审批回调失败: code=${approval.code ?? "unknown"} message=${approval.message ?? approval.bodyText}`);
+  }
+
   if (options.logger) {
     // eslint-disable-next-line no-console
     console.log(JSON.stringify({ traceId: task.traceId, taskId: task.id, action: decision.action, approved: decision.approved }));
