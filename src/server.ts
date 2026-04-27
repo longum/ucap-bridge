@@ -60,6 +60,21 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
     };
   });
 
+  app.get<{ Params: { traceId: string } }>("/tasks/:traceId", async (request, reply) => {
+    const task = store.findByTraceId(request.params.traceId);
+    if (!task) {
+      return reply.status(404).send({
+        success: false,
+        error: "任务不存在",
+      });
+    }
+
+    return {
+      success: true,
+      task,
+    };
+  });
+
   async function handleInvoke(request: FastifyRequest, reply: FastifyReply, botId?: string) {
     const traceId = randomUUID();
     const rawBody = typeof request.body === "string" ? request.body : "";
@@ -112,6 +127,10 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
       input,
       maxAttempts: config.taskMaxAttempts,
     });
+
+    if (config.logInboundBody) {
+      request.log.info({ traceId, botId, rawBody }, "收到合思出站消息");
+    }
 
     return reply.send({
       success: true,

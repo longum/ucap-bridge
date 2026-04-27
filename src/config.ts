@@ -135,6 +135,7 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
     ekuaibaoAppSecurity: isNonEmptyString(raw.ekuaibaoAppSecurity) ? raw.ekuaibaoAppSecurity : "",
     ekuaibaoAccessToken: isNonEmptyString(raw.ekuaibaoAccessToken) ? raw.ekuaibaoAccessToken : undefined,
     requireSignature: raw.requireSignature === undefined ? true : parseBoolean(raw.requireSignature, "requireSignature"),
+    logInboundBody: raw.logInboundBody === undefined ? false : parseBoolean(raw.logInboundBody, "logInboundBody"),
     requestTimeoutMs: raw.requestTimeoutMs,
     taskDbPath: isNonEmptyString(raw.taskDbPath) ? raw.taskDbPath : "data/bridge.sqlite",
     taskMaxAttempts: typeof raw.taskMaxAttempts === "number" ? raw.taskMaxAttempts : 5,

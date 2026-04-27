@@ -12,6 +12,7 @@ export interface BridgeConfig {
   ekuaibaoAppSecurity: string;
   ekuaibaoAccessToken?: string;
   requireSignature: boolean;
+  logInboundBody: boolean;
   requestTimeoutMs: number;
   taskDbPath: string;
   taskMaxAttempts: number;
@@ -36,6 +37,7 @@ export interface RawConfig {
   ekuaibaoAppSecurity?: unknown;
   ekuaibaoAccessToken?: unknown;
   requireSignature?: unknown;
+  logInboundBody?: unknown;
   requestTimeoutMs?: unknown;
   taskDbPath?: unknown;
   taskMaxAttempts?: unknown;

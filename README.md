@@ -53,6 +53,7 @@ cp config.example.json config.json
 - `ekuaibaoAppKey`: 合思开放接口接入账号，用于获取 `accessToken`
 - `ekuaibaoAppSecurity`: 合思开放接口接入密码，用于获取 `accessToken`
 - `requireSignature`: 是否校验调用本服务的入站签名；联调合思出站消息时可先设为 `false`
+- `logInboundBody`: 是否把合思入站原始 body 打到日志，默认 `false`
 - `requestTimeoutMs`: 上游请求超时时间
 - `taskDbPath`: 审批任务 SQLite 文件路径，默认 `data/bridge.sqlite`
 - `taskMaxAttempts`: 单个任务最大尝试次数
@@ -102,6 +103,24 @@ curl http://127.0.0.1:3000/tasks/summary
 ```
 
 返回内容包含 pending、processing、completed、failed 数量，最早待处理任务等待时间，以及最近失败任务和错误信息。
+
+### 查看某次请求内容
+
+`/invoke` 返回的 `traceId` 可以用于回查任务详情：
+
+```bash
+curl http://127.0.0.1:3000/tasks/<traceId>
+```
+
+返回内容里包含当时合思传入的 `rawBody`。如果需要临时把每次入站请求打印到 PM2 日志，可以在 `config.json` 设置：
+
+```json
+{
+  "logInboundBody": true
+}
+```
+
+改完配置后需要重启服务。排查完成后建议改回 `false`，避免日志里长期保存手机号、邮箱等敏感信息。
 
 ### 调用桥接接口
 

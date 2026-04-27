@@ -9,6 +9,7 @@ export interface TaskStore {
   complete(id: string): void;
   fail(id: string, error: string, nextRunAt: number): void;
   summary(now: number): TaskSummary;
+  findByTraceId(traceId: string): ApprovalTask | undefined;
   close(): void;
 }
 
@@ -105,6 +106,7 @@ export function createTaskStore(dbPath: string): TaskStore {
     ORDER BY updated_at DESC
     LIMIT 10
   `);
+  const findByTraceId = db.prepare("SELECT * FROM approval_tasks WHERE trace_id = ? ORDER BY created_at DESC LIMIT 1");
 
   return {
     enqueue(task) {
@@ -164,6 +166,10 @@ export function createTaskStore(dbPath: string): TaskStore {
         oldestPendingAgeMs: oldest ? Math.max(0, now - Number(oldest.created_at)) : null,
         recentFailures: failures,
       };
+    },
+    findByTraceId(traceId) {
+      const row = findByTraceId.get(traceId) as Record<string, unknown> | undefined;
+      return row ? rowToTask(row) : undefined;
     },
     close() {
       db.close();

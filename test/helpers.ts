@@ -77,6 +77,10 @@ export function createMemoryTaskStore(): TaskStore & { tasks: ApprovalTask[] } {
           })),
       };
     },
+    findByTraceId(traceId) {
+      const task = tasks.find((candidate) => candidate.traceId === traceId);
+      return task ? { ...task } : undefined;
+    },
     close() {
       return;
     },

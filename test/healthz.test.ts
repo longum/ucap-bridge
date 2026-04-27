@@ -14,6 +14,7 @@ const config: BridgeConfig = {
   ekuaibaoAppKey: "app-key",
   ekuaibaoAppSecurity: "app-security",
   requireSignature: false,
+  logInboundBody: false,
   requestTimeoutMs: 1000,
   taskDbPath: "data/test.sqlite",
   taskMaxAttempts: 2,
@@ -82,6 +83,35 @@ describe("healthz", () => {
             lastError: "boom",
           },
         ],
+      },
+    });
+
+    await app.close();
+  });
+
+  it("returns task details by traceId", async () => {
+    const taskStore = createMemoryTaskStore();
+    taskStore.enqueue({
+      id: "task-1",
+      traceId: "trace-1",
+      signSecret: "sign-secret",
+      rawBody: '{"flowId":"flow-1"}',
+      input: '{"flowId":"flow-1"}',
+      maxAttempts: 1,
+    });
+    const app = createApp(config, { taskStore, startWorker: false });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/tasks/trace-1",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      success: true,
+      task: {
+        traceId: "trace-1",
+        rawBody: '{"flowId":"flow-1"}',
       },
     });
 

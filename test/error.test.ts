@@ -16,6 +16,7 @@ const config: BridgeConfig = {
   ekuaibaoAppKey: "app-key",
   ekuaibaoAppSecurity: "app-security",
   requireSignature: true,
+  logInboundBody: false,
   requestTimeoutMs: 1000,
   taskDbPath: "data/test.sqlite",
   taskMaxAttempts: 5,

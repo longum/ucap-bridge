@@ -15,6 +15,7 @@ const baseConfig = {
   ekuaibaoAppKey: "app-key",
   ekuaibaoAppSecurity: "app-security",
   requireSignature: true,
+  logInboundBody: false,
   requestTimeoutMs: 1000,
   inputField: "input",
   responseMode: "auto",
