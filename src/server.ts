@@ -5,6 +5,7 @@ import { ApprovalTaskWorker, readInputFromBody } from "./taskProcessor";
 import { BridgeConfig } from "./types";
 import { UcapClientOptions } from "./ucapClient";
 import { verifyRequestSignature } from "./signature";
+import { appendInboundLog } from "./inboundLog";
 
 export interface CreateServerOptions extends UcapClientOptions {
   logger?: boolean;
@@ -12,11 +13,7 @@ export interface CreateServerOptions extends UcapClientOptions {
   startWorker?: boolean;
 }
 
-function resolveSignSecret(config: BridgeConfig, botId?: string): string | undefined {
-  if (!botId) {
-    return config.signSecret;
-  }
-
+function resolveSignSecret(config: BridgeConfig, botId: string): string | undefined {
   return config.outboundBots.find((item) => item.botId === botId)?.signSecret;
 }
 
@@ -75,7 +72,7 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
     };
   });
 
-  async function handleInvoke(request: FastifyRequest, reply: FastifyReply, botId?: string) {
+  async function handleInvoke(request: FastifyRequest, reply: FastifyReply, botId: string) {
     const traceId = randomUUID();
     const rawBody = typeof request.body === "string" ? request.body : "";
     const signSecret = resolveSignSecret(config, botId);
@@ -122,6 +119,7 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
     store.enqueue({
       id: randomUUID(),
       traceId,
+      botId,
       signSecret,
       rawBody,
       input,
@@ -129,6 +127,12 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
     });
 
     if (config.logInboundBody) {
+      await appendInboundLog(config.inboundLogPath, {
+        timestamp: new Date().toISOString(),
+        traceId,
+        botId,
+        rawBody,
+      });
       request.log.info({ traceId, botId, rawBody }, "收到合思出站消息");
     }
 
@@ -139,7 +143,6 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
     });
   }
 
-  app.post("/invoke", async (request, reply) => handleInvoke(request, reply));
   app.post<{ Params: { botId: string } }>("/invoke/:botId", async (request, reply) => handleInvoke(request, reply, request.params.botId));
 
   app.addHook("onReady", async () => {

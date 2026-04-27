@@ -7,7 +7,7 @@
 - `GET /health`
 - `GET /healthz`
 - `GET /tasks/summary`
-- `POST /invoke`
+- `POST /invoke/:botId`
 - 支持 UCAP 的 JSON 和 SSE 两种响应
 - 支持合思外部服务回调审批 `POST /api/openapi/v1/approval`
 - 使用 SQLite 持久化审批任务，服务重启后会继续处理未完成任务
@@ -53,7 +53,8 @@ cp config.example.json config.json
 - `ekuaibaoAppKey`: 合思开放接口接入账号，用于获取 `accessToken`
 - `ekuaibaoAppSecurity`: 合思开放接口接入密码，用于获取 `accessToken`
 - `requireSignature`: 是否校验调用本服务的入站签名；联调合思出站消息时可先设为 `false`
-- `logInboundBody`: 是否把合思入站原始 body 打到日志，默认 `false`
+- `logInboundBody`: 是否记录合思入站原始 body，默认 `false`
+- `inboundLogPath`: 入站请求文件日志路径，默认 `logs/inbound.log`
 - `requestTimeoutMs`: 上游请求超时时间
 - `taskDbPath`: 审批任务 SQLite 文件路径，默认 `data/bridge.sqlite`
 - `taskMaxAttempts`: 单个任务最大尝试次数
@@ -106,26 +107,33 @@ curl http://127.0.0.1:3000/tasks/summary
 
 ### 查看某次请求内容
 
-`/invoke` 返回的 `traceId` 可以用于回查任务详情：
+`/invoke/:botId` 返回的 `traceId` 可以用于回查任务详情：
 
 ```bash
 curl http://127.0.0.1:3000/tasks/<traceId>
 ```
 
-返回内容里包含当时合思传入的 `rawBody`。如果需要临时把每次入站请求打印到 PM2 日志，可以在 `config.json` 设置：
+返回内容里包含当时合思传入的 `rawBody`。如果需要临时把每次入站请求打印到文件，可以在 `config.json` 设置：
 
 ```json
 {
-  "logInboundBody": true
+  "logInboundBody": true,
+  "inboundLogPath": "logs/inbound.log"
 }
 ```
 
-改完配置后需要重启服务。排查完成后建议改回 `false`，避免日志里长期保存手机号、邮箱等敏感信息。
+改完配置后需要重启服务。之后可以在服务器上查看：
+
+```bash
+tail -f logs/inbound.log
+```
+
+日志是一行一个 JSON，包含 `timestamp`、`traceId`、`botId`、`rawBody`。排查完成后建议把 `logInboundBody` 改回 `false`，避免日志里长期保存手机号、邮箱等敏感信息。
 
 ### 调用桥接接口
 
 ```bash
-curl -X POST http://127.0.0.1:3000/invoke \
+curl -X POST http://127.0.0.1:3000/invoke/finance-audit \
   -H 'Content-Type: application/json' \
   -d '{"flowId":"MK48h7s2yQ6Y00","nodeId":"FLOW:251847192:631543649","action":"","actionName":"","userInfo":{"id":"员工id","name":"张三"}}'
 ```
@@ -217,15 +225,9 @@ http://43.153.166.170:3000/invoke/finance-audit
 http://43.153.166.170:3000/invoke/travel-audit
 ```
 
-bridge 会用 URL 里的 `finance-audit` 或 `travel-audit` 去匹配 `outboundBots[].botId`，再选择对应的签名密钥回调合思审批接口。
+bridge 会用 URL 里的 `finance-audit` 或 `travel-audit` 去匹配 `outboundBots[].botId`，再选择对应的签名密钥回调合思审批接口。同时，这个 `botId` 会透传给智能体，放在 UCAP 请求体的 `vars.botId` 中，方便智能体区分当前是哪一个审批 Bot。
 
-如果只有一个出站审批，也可以继续使用：
-
-```text
-http://43.153.166.170:3000/invoke
-```
-
-此时 bridge 使用顶层 `signSecret`。
+bridge 不再支持默认 `/invoke` 作为审批入口；即使只有一个出站审批，也需要配置一个 `botId`，并让合思调用 `/invoke/<botId>`。这样每次审批都能明确选择签名密钥，也能把 `botId` 传给智能体。
 
 ### 合思审批回调
 
@@ -251,7 +253,7 @@ POST {ekuaibaoBaseUrl}/api/openapi/v1/approval?accessToken={accessToken}
 
 合思回调审批接口返回 HTTP 200 还不够，bridge 会继续检查响应体里的 `value.code`。只有 `value.code` 等于 `"204"` 时才把任务标记为完成；如果是 `"400"`、`"401"`、`"412"` 或 `"500"`，任务会按失败处理并进入重试/失败状态。
 
-`POST /invoke` 会先返回 HTTP 200：
+`POST /invoke/:botId` 会先返回 HTTP 200：
 
 ```json
 {
@@ -263,7 +265,7 @@ POST {ekuaibaoBaseUrl}/api/openapi/v1/approval?accessToken={accessToken}
 
 这个 200 表示 bridge 已接收合思出站消息。实际审批通过或驳回会在后台通过合思审批回调接口完成。
 
-收到 `/invoke` 后，bridge 会先把任务写入 SQLite，再返回 200。后台 worker 会从 SQLite 中领取任务执行 UCAP 调用和合思审批回调；如果服务重启，未完成任务会在下次启动后继续处理。
+收到 `/invoke/:botId` 后，bridge 会先把任务写入 SQLite，再返回 200。后台 worker 会从 SQLite 中领取任务执行 UCAP 调用和合思审批回调；如果服务重启，未完成任务会在下次启动后继续处理。
 
 生产运行建议至少监控：
 

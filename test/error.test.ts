@@ -17,6 +17,7 @@ const config: BridgeConfig = {
   ekuaibaoAppSecurity: "app-security",
   requireSignature: true,
   logInboundBody: false,
+  inboundLogPath: "logs/inbound.log",
   requestTimeoutMs: 1000,
   taskDbPath: "data/test.sqlite",
   taskMaxAttempts: 5,
@@ -30,6 +31,31 @@ const config: BridgeConfig = {
 };
 
 describe("errors", () => {
+  it("does not expose the default /invoke endpoint", async () => {
+    const taskStore = createMemoryTaskStore();
+    const app = createApp(
+      {
+        ...config,
+        requireSignature: false,
+      },
+      { taskStore, startWorker: false }
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/invoke",
+      payload: JSON.stringify({ input: "你好" }),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(taskStore.tasks).toHaveLength(0);
+
+    await app.close();
+  });
+
   it("rejects missing input", async () => {
     const app = createApp(config, {
       fetchImpl: vi.fn(),
@@ -40,12 +66,12 @@ describe("errors", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/invoke",
+      url: "/invoke/bot-a",
       payload: body,
       headers: {
         "content-type": "application/json",
         "x-timestamp": timestamp,
-        "x-signature": buildRequestSignature(timestamp, body, config.signSecret),
+        "x-signature": buildRequestSignature(timestamp, body, "bot-a-secret"),
       },
     });
 
@@ -64,12 +90,12 @@ describe("errors", () => {
     const app = createApp(config, { taskStore, startWorker: false });
     const response = await app.inject({
       method: "POST",
-      url: "/invoke",
+      url: "/invoke/bot-a",
       payload: body,
       headers: {
         "content-type": "application/json",
         "x-timestamp": timestamp,
-        "x-signature": buildRequestSignature(timestamp, body, config.signSecret),
+        "x-signature": buildRequestSignature(timestamp, body, "bot-a-secret"),
       },
     });
 
@@ -92,7 +118,7 @@ describe("errors", () => {
     const timestamp = String(Date.now());
     const response = await app.inject({
       method: "POST",
-      url: "/invoke",
+      url: "/invoke/bot-a",
       payload: body,
       headers: {
         "content-type": "application/json",
@@ -136,7 +162,7 @@ describe("errors", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/invoke",
+      url: "/invoke/bot-a",
       payload: body,
       headers: {
         "content-type": "application/json",
@@ -206,7 +232,7 @@ describe("errors", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/invoke",
+      url: "/invoke/bot-a",
       payload: body,
       headers: {
         "content-type": "application/json",
@@ -229,7 +255,7 @@ describe("errors", () => {
     });
     expect(String(fetchImpl.mock.calls[2]?.[0])).toContain("/api/openapi/v1/approval?accessToken=access-token");
     expect(JSON.parse(String((fetchImpl.mock.calls[2]?.[1] as RequestInit).body))).toMatchObject({
-      signKey: "sign-secret",
+      signKey: "bot-a-secret",
       flowId: "flow-1",
       nodeId: "node-1",
       action: "accept",
@@ -284,7 +310,7 @@ describe("errors", () => {
 
     await app.inject({
       method: "POST",
-      url: "/invoke",
+      url: "/invoke/bot-a",
       payload: body,
       headers: {
         "content-type": "application/json",

@@ -13,6 +13,7 @@ export interface BridgeConfig {
   ekuaibaoAccessToken?: string;
   requireSignature: boolean;
   logInboundBody: boolean;
+  inboundLogPath: string;
   requestTimeoutMs: number;
   taskDbPath: string;
   taskMaxAttempts: number;
@@ -38,6 +39,7 @@ export interface RawConfig {
   ekuaibaoAccessToken?: unknown;
   requireSignature?: unknown;
   logInboundBody?: unknown;
+  inboundLogPath?: unknown;
   requestTimeoutMs?: unknown;
   taskDbPath?: unknown;
   taskMaxAttempts?: unknown;
@@ -83,6 +85,7 @@ export interface ApprovalTask {
   id: string;
   status: TaskStatus;
   traceId: string;
+  botId?: string;
   signSecret: string;
   rawBody: string;
   input: string;

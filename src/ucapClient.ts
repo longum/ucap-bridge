@@ -13,6 +13,7 @@ function buildChatUrl(baseUrl: string): string {
 export async function invokeUcapChat(
   config: BridgeConfig,
   input: string,
+  vars: Record<string, unknown> = {},
   options: UcapClientOptions = {}
 ): Promise<UcapUpstreamResponse> {
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -34,7 +35,10 @@ export async function invokeUcapChat(
           ...config.ucapParameters,
           userChatInput: input,
         },
-        vars: config.ucapVars,
+        vars: {
+          ...config.ucapVars,
+          ...vars,
+        },
       }),
       signal: controller.signal,
     });

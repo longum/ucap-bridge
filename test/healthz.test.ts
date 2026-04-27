@@ -15,6 +15,7 @@ const config: BridgeConfig = {
   ekuaibaoAppSecurity: "app-security",
   requireSignature: false,
   logInboundBody: false,
+  inboundLogPath: "logs/inbound.log",
   requestTimeoutMs: 1000,
   taskDbPath: "data/test.sqlite",
   taskMaxAttempts: 2,

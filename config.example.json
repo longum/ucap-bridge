@@ -15,6 +15,7 @@
   "ekuaibaoAppSecurity": "replace-me",
   "requireSignature": false,
   "logInboundBody": false,
+  "inboundLogPath": "logs/inbound.log",
   "requestTimeoutMs": 30000,
   "taskDbPath": "data/bridge.sqlite",
   "taskMaxAttempts": 5,

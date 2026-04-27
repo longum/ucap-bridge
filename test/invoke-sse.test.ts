@@ -16,6 +16,7 @@ const config: BridgeConfig = {
   ekuaibaoAppSecurity: "app-security",
   requireSignature: true,
   logInboundBody: false,
+  inboundLogPath: "logs/inbound.log",
   requestTimeoutMs: 1000,
   taskDbPath: "data/test.sqlite",
   taskMaxAttempts: 5,
@@ -37,12 +38,12 @@ describe("invoke sse", () => {
     const app = createApp(config, { taskStore, startWorker: false });
     const response = await app.inject({
       method: "POST",
-      url: "/invoke",
+      url: "/invoke/bot-a",
       payload: body,
       headers: {
         "content-type": "application/json",
         "x-timestamp": timestamp,
-        "x-signature": buildRequestSignature(timestamp, body, config.signSecret),
+        "x-signature": buildRequestSignature(timestamp, body, "bot-a-secret"),
       },
     });
 

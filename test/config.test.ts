@@ -16,6 +16,7 @@ const baseConfig = {
   ekuaibaoAppSecurity: "app-security",
   requireSignature: true,
   logInboundBody: false,
+  inboundLogPath: "logs/inbound.log",
   requestTimeoutMs: 1000,
   inputField: "input",
   responseMode: "auto",
@@ -34,6 +35,7 @@ describe("config", () => {
     expect(config.listenPort).toBe(3000);
     expect(config.ucapBaseUrl).toBe("https://ucap.example.com");
     expect(config.responseMode).toBe("auto");
+    expect(config.inboundLogPath).toBe("logs/inbound.log");
   });
 
   it("rejects invalid config", () => {

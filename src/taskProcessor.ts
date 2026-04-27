@@ -40,7 +40,7 @@ export function readInputFromBody(body: unknown, inputField: string, rawBody: st
 
 export async function processApprovalTask(config: BridgeConfig, task: ApprovalTask, options: TaskProcessorOptions = {}): Promise<void> {
   const parsedBody = JSON.parse(task.rawBody) as unknown;
-  const upstream = await invokeUcapChat(config, task.input, { fetchImpl: options.fetchImpl });
+  const upstream = await invokeUcapChat(config, task.input, task.botId ? { botId: task.botId } : {}, { fetchImpl: options.fetchImpl });
 
   if (upstream.status < 200 || upstream.status >= 300) {
     throw new Error(`UCAP 返回非 2xx 状态码: ${upstream.status}`);

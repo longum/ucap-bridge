@@ -88,6 +88,9 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
   if (raw.taskDbPath !== undefined && !isNonEmptyString(raw.taskDbPath)) {
     throw new Error("taskDbPath 缺失或无效");
   }
+  if (raw.inboundLogPath !== undefined && !isNonEmptyString(raw.inboundLogPath)) {
+    throw new Error("inboundLogPath 缺失或无效");
+  }
   if (raw.taskMaxAttempts !== undefined && !isPositiveInteger(raw.taskMaxAttempts)) {
     throw new Error("taskMaxAttempts 缺失或无效");
   }
@@ -136,6 +139,7 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
     ekuaibaoAccessToken: isNonEmptyString(raw.ekuaibaoAccessToken) ? raw.ekuaibaoAccessToken : undefined,
     requireSignature: raw.requireSignature === undefined ? true : parseBoolean(raw.requireSignature, "requireSignature"),
     logInboundBody: raw.logInboundBody === undefined ? false : parseBoolean(raw.logInboundBody, "logInboundBody"),
+    inboundLogPath: isNonEmptyString(raw.inboundLogPath) ? raw.inboundLogPath : "logs/inbound.log",
     requestTimeoutMs: raw.requestTimeoutMs,
     taskDbPath: isNonEmptyString(raw.taskDbPath) ? raw.taskDbPath : "data/bridge.sqlite",
     taskMaxAttempts: typeof raw.taskMaxAttempts === "number" ? raw.taskMaxAttempts : 5,

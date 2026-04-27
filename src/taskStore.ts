@@ -4,7 +4,7 @@ import path from "node:path";
 import { ApprovalTask, TaskStatus, TaskSummary } from "./types";
 
 export interface TaskStore {
-  enqueue(task: Pick<ApprovalTask, "id" | "traceId" | "signSecret" | "rawBody" | "input" | "maxAttempts">): void;
+  enqueue(task: Pick<ApprovalTask, "id" | "traceId" | "botId" | "signSecret" | "rawBody" | "input" | "maxAttempts">): void;
   claimNext(now: number): ApprovalTask | undefined;
   complete(id: string): void;
   fail(id: string, error: string, nextRunAt: number): void;
@@ -18,6 +18,7 @@ function rowToTask(row: Record<string, unknown>): ApprovalTask {
     id: String(row.id),
     status: row.status as ApprovalTask["status"],
     traceId: String(row.trace_id),
+    botId: typeof row.bot_id === "string" && row.bot_id.length > 0 ? row.bot_id : undefined,
     signSecret: String(row.sign_secret),
     rawBody: String(row.raw_body),
     input: String(row.input),
@@ -41,6 +42,7 @@ export function createTaskStore(dbPath: string): TaskStore {
       id TEXT PRIMARY KEY,
       status TEXT NOT NULL,
       trace_id TEXT NOT NULL,
+      bot_id TEXT,
       sign_secret TEXT NOT NULL DEFAULT '',
       raw_body TEXT NOT NULL,
       input TEXT NOT NULL,
@@ -59,14 +61,17 @@ export function createTaskStore(dbPath: string): TaskStore {
     db.prepare("ALTER TABLE approval_tasks ADD COLUMN sign_secret TEXT NOT NULL DEFAULT ''").run();
     db.prepare("UPDATE approval_tasks SET sign_secret = '' WHERE sign_secret IS NULL").run();
   }
+  if (!columns.some((column) => column.name === "bot_id")) {
+    db.prepare("ALTER TABLE approval_tasks ADD COLUMN bot_id TEXT").run();
+  }
 
   db.prepare("UPDATE approval_tasks SET status = 'pending', updated_at = ? WHERE status = 'processing'").run(Date.now());
 
   const insert = db.prepare(`
     INSERT INTO approval_tasks (
-      id, status, trace_id, sign_secret, raw_body, input, attempts, max_attempts, next_run_at, created_at, updated_at
+      id, status, trace_id, bot_id, sign_secret, raw_body, input, attempts, max_attempts, next_run_at, created_at, updated_at
     ) VALUES (
-      @id, 'pending', @traceId, @signSecret, @rawBody, @input, 0, @maxAttempts, @now, @now, @now
+      @id, 'pending', @traceId, @botId, @signSecret, @rawBody, @input, 0, @maxAttempts, @now, @now, @now
     )
   `);
   const selectNext = db.prepare(`
@@ -110,7 +115,7 @@ export function createTaskStore(dbPath: string): TaskStore {
 
   return {
     enqueue(task) {
-      insert.run({ ...task, now: Date.now() });
+      insert.run({ ...task, botId: task.botId ?? null, now: Date.now() });
     },
     claimNext(now) {
       const row = selectNext.get(now) as Record<string, unknown> | undefined;
