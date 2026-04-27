@@ -142,6 +142,8 @@ curl -X POST http://127.0.0.1:3000/invoke \
 
 bridge 会把 `approved=true` 转成合思回调审批接口的 `action=accept`，把 `approved=false` 转成 `action=refuse`，并把 `reason` 作为审批意见 `comment`。
 
+如果智能体没有返回合法 JSON、`approved` 不是 boolean，或 `reason` 为空，bridge 会按审核不通过处理并回调 `action=refuse`，避免格式异常时误通过。
+
 ### 合思审批回调
 
 当合思出站消息 body 中包含 `flowId` 和 `nodeId` 时，bridge 会在拿到 UCAP 审核结论后调用：

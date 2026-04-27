@@ -29,36 +29,40 @@ function readBoolean(value: unknown): boolean | undefined {
   if (typeof value === "boolean") {
     return value;
   }
-  if (value === "true" || value === "1" || value === "accept" || value === "approved") {
-    return true;
-  }
-  if (value === "false" || value === "0" || value === "refuse" || value === "rejected") {
-    return false;
-  }
   return undefined;
 }
 
 export function parseApprovalDecision(content: string): ApprovalDecision {
   const parsed = parseJsonObject(content);
-  if (parsed) {
-    const action = readString(parsed.action);
-    const approved = readBoolean(parsed.approved ?? parsed.pass ?? parsed.result ?? action);
-    const reason = readString(parsed.reason);
-    const message = readString(parsed.message);
-    const comment = reason ?? message ?? content.trim();
-
-    if (action === "accept" || approved === true) {
-      return { action: "accept", approved: true, comment: comment || "同意" };
-    }
-
-    if (action === "refuse" || approved === false) {
-      return { action: "refuse", approved: false, comment: comment || "驳回" };
-    }
+  if (!parsed) {
+    return {
+      action: "refuse",
+      approved: false,
+      comment: "智能体返回格式不合法：必须返回 JSON 对象，且包含 boolean 类型的 approved 字段",
+    };
   }
 
-  if (/不通过|驳回|拒绝|不合规|异常|风险/.test(content)) {
-    return { action: "refuse", approved: false, comment: content.trim() || "驳回" };
+  const approved = readBoolean(parsed.approved);
+  if (approved === undefined) {
+    return {
+      action: "refuse",
+      approved: false,
+      comment: "智能体返回格式不合法：approved 必须是 boolean 类型",
+    };
   }
 
-  return { action: "accept", approved: true, comment: content.trim() || "同意" };
+  const reason = readString(parsed.reason);
+  if (!reason) {
+    return {
+      action: "refuse",
+      approved: false,
+      comment: "智能体返回格式不合法：reason 不能为空",
+    };
+  }
+
+  return {
+    action: approved ? "accept" : "refuse",
+    approved,
+    comment: reason,
+  };
 }
