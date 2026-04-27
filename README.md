@@ -5,6 +5,8 @@
 ## 功能
 
 - `GET /health`
+- `GET /healthz`
+- `GET /tasks/summary`
 - `POST /invoke`
 - 支持 UCAP 的 JSON 和 SSE 两种响应
 - 支持合思外部服务回调审批 `POST /api/openapi/v1/approval`
@@ -83,6 +85,22 @@ npm start
 ```bash
 curl http://127.0.0.1:3000/health
 ```
+
+### 队列健康检查
+
+```bash
+curl http://127.0.0.1:3000/healthz
+```
+
+`/healthz` 会返回任务队列统计。如果存在最终失败的审批任务，HTTP 状态码会变成 `503`，便于接入云监控或 uptime 监控。
+
+### 查看任务概览
+
+```bash
+curl http://127.0.0.1:3000/tasks/summary
+```
+
+返回内容包含 pending、processing、completed、failed 数量，最早待处理任务等待时间，以及最近失败任务和错误信息。
 
 ### 调用桥接接口
 
@@ -188,6 +206,13 @@ POST {ekuaibaoBaseUrl}/api/openapi/v1/approval?accessToken={accessToken}
 这个 200 表示 bridge 已接收合思出站消息。实际审批通过或驳回会在后台通过合思审批回调接口完成。
 
 收到 `/invoke` 后，bridge 会先把任务写入 SQLite，再返回 200。后台 worker 会从 SQLite 中领取任务执行 UCAP 调用和合思审批回调；如果服务重启，未完成任务会在下次启动后继续处理。
+
+生产运行建议至少监控：
+
+- `GET /healthz` 是否返回 200
+- `failed` 任务数是否大于 0
+- `oldestPendingAgeMs` 是否持续增长
+- `pm2 logs ucap-bridge` 中是否有处理失败日志
 
 ## 返回格式
 

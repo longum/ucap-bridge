@@ -88,3 +88,9 @@ export interface ApprovalTask {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface TaskSummary {
+  counts: Record<TaskStatus, number>;
+  oldestPendingAgeMs: number | null;
+  recentFailures: Array<Pick<ApprovalTask, "id" | "traceId" | "status" | "attempts" | "maxAttempts" | "lastError" | "updatedAt">>;
+}

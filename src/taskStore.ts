@@ -1,13 +1,14 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
-import { ApprovalTask } from "./types";
+import { ApprovalTask, TaskStatus, TaskSummary } from "./types";
 
 export interface TaskStore {
   enqueue(task: Pick<ApprovalTask, "id" | "traceId" | "rawBody" | "input" | "maxAttempts">): void;
   claimNext(now: number): ApprovalTask | undefined;
   complete(id: string): void;
   fail(id: string, error: string, nextRunAt: number): void;
+  summary(now: number): TaskSummary;
   close(): void;
 }
 
@@ -84,6 +85,19 @@ export function createTaskStore(dbPath: string): TaskStore {
         updated_at = ?
     WHERE id = ?
   `);
+  const countByStatus = db.prepare("SELECT status, COUNT(*) as count FROM approval_tasks GROUP BY status");
+  const oldestPending = db.prepare(`
+    SELECT created_at FROM approval_tasks
+    WHERE status = 'pending'
+    ORDER BY created_at ASC
+    LIMIT 1
+  `);
+  const recentFailures = db.prepare(`
+    SELECT * FROM approval_tasks
+    WHERE status = 'failed' OR last_error IS NOT NULL
+    ORDER BY updated_at DESC
+    LIMIT 10
+  `);
 
   return {
     enqueue(task) {
@@ -112,6 +126,37 @@ export function createTaskStore(dbPath: string): TaskStore {
     },
     fail(id, error, nextRunAt) {
       fail.run(error, nextRunAt, Date.now(), id);
+    },
+    summary(now) {
+      const counts: Record<TaskStatus, number> = {
+        pending: 0,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+      };
+      for (const row of countByStatus.all() as Array<{ status: TaskStatus; count: number }>) {
+        counts[row.status] = Number(row.count);
+      }
+
+      const oldest = oldestPending.get() as { created_at: number } | undefined;
+      const failures = (recentFailures.all() as Array<Record<string, unknown>>).map((row) => {
+        const task = rowToTask(row);
+        return {
+          id: task.id,
+          traceId: task.traceId,
+          status: task.status,
+          attempts: task.attempts,
+          maxAttempts: task.maxAttempts,
+          lastError: task.lastError,
+          updatedAt: task.updatedAt,
+        };
+      });
+
+      return {
+        counts,
+        oldestPendingAgeMs: oldest ? Math.max(0, now - Number(oldest.created_at)) : null,
+        recentFailures: failures,
+      };
     },
     close() {
       db.close();

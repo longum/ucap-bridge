@@ -34,6 +34,24 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
     };
   });
 
+  app.get("/healthz", async (request, reply) => {
+    const summary = store.summary(Date.now());
+    const healthy = summary.counts.failed === 0;
+
+    return reply.status(healthy ? 200 : 503).send({
+      success: healthy,
+      status: healthy ? "ok" : "degraded",
+      tasks: summary,
+    });
+  });
+
+  app.get("/tasks/summary", async () => {
+    return {
+      success: true,
+      tasks: store.summary(Date.now()),
+    };
+  });
+
   app.post("/invoke", async (request, reply) => {
     const traceId = randomUUID();
     const rawBody = typeof request.body === "string" ? request.body : "";
