@@ -303,7 +303,7 @@ describe("errors", () => {
     await app.close();
   });
 
-  it("uses the outbound bot sign secret selected by botId", async () => {
+  it("uses the outbound bot sign secret selected by URL botId", async () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(
@@ -342,9 +342,8 @@ describe("errors", () => {
 
     await app.inject({
       method: "POST",
-      url: "/invoke",
+      url: "/invoke/bot-b",
       payload: JSON.stringify({
-        botId: "bot-b",
         flowId: "flow-1",
         nodeId: "node-1",
       }),
@@ -360,6 +359,39 @@ describe("errors", () => {
       signKey: "bot-b-secret",
       action: "accept",
     });
+
+    await app.close();
+  });
+
+  it("rejects an unknown URL botId", async () => {
+    const taskStore = createMemoryTaskStore();
+    const app = createApp(
+      {
+        ...config,
+        requireSignature: false,
+        inputField: "$body",
+      },
+      { taskStore, startWorker: false }
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/invoke/missing-bot",
+      payload: JSON.stringify({
+        flowId: "flow-1",
+        nodeId: "node-1",
+      }),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({
+      success: false,
+      error: "未知的 botId: missing-bot",
+    });
+    expect(taskStore.tasks).toHaveLength(0);
 
     await app.close();
   });

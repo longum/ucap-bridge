@@ -1,4 +1,4 @@
-import Fastify, { FastifyInstance } from "fastify";
+import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
 import { createTaskStore, TaskStore } from "./taskStore";
 import { ApprovalTaskWorker, readInputFromBody } from "./taskProcessor";
@@ -12,27 +12,12 @@ export interface CreateServerOptions extends UcapClientOptions {
   startWorker?: boolean;
 }
 
-function readBodyString(body: unknown, fieldName: string): string | undefined {
-  if (typeof body !== "object" || body === null) {
-    return undefined;
-  }
-  const value = (body as Record<string, unknown>)[fieldName];
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
-}
-
-function resolveSignSecret(config: BridgeConfig, body: unknown): string {
-  const candidates = [readBodyString(body, "botId"), readBodyString(body, "action"), readBodyString(body, "actionName")].filter(
-    (value): value is string => Boolean(value)
-  );
-
-  for (const candidate of candidates) {
-    const bot = config.outboundBots.find((item) => item.botId === candidate);
-    if (bot) {
-      return bot.signSecret;
-    }
+function resolveSignSecret(config: BridgeConfig, botId?: string): string | undefined {
+  if (!botId) {
+    return config.signSecret;
   }
 
-  return config.signSecret;
+  return config.outboundBots.find((item) => item.botId === botId)?.signSecret;
 }
 
 export function createApp(config: BridgeConfig, options: CreateServerOptions = {}): FastifyInstance {
@@ -75,10 +60,20 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
     };
   });
 
-  app.post("/invoke", async (request, reply) => {
+  async function handleInvoke(request: FastifyRequest, reply: FastifyReply, botId?: string) {
     const traceId = randomUUID();
     const rawBody = typeof request.body === "string" ? request.body : "";
-    const signatureResult = config.requireSignature ? verifyRequestSignature(rawBody, request.headers, config) : { ok: true as const };
+    const signSecret = resolveSignSecret(config, botId);
+
+    if (!signSecret) {
+      return reply.status(404).send({
+        success: false,
+        error: `未知的 botId: ${botId}`,
+        traceId,
+      });
+    }
+
+    const signatureResult = config.requireSignature ? verifyRequestSignature(rawBody, request.headers, { signSecret }) : { ok: true as const };
 
     if (!signatureResult.ok) {
       return reply.status(401).send({
@@ -112,7 +107,7 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
     store.enqueue({
       id: randomUUID(),
       traceId,
-      signSecret: resolveSignSecret(config, parsedBody),
+      signSecret,
       rawBody,
       input,
       maxAttempts: config.taskMaxAttempts,
@@ -123,7 +118,10 @@ export function createApp(config: BridgeConfig, options: CreateServerOptions = {
       accepted: true,
       traceId,
     });
-  });
+  }
+
+  app.post("/invoke", async (request, reply) => handleInvoke(request, reply));
+  app.post<{ Params: { botId: string } }>("/invoke/:botId", async (request, reply) => handleInvoke(request, reply, request.params.botId));
 
   app.addHook("onReady", async () => {
     if (options.startWorker !== false) {
