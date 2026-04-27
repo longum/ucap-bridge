@@ -59,6 +59,18 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
   if (!isPositiveInteger(raw.requestTimeoutMs)) {
     throw new Error("requestTimeoutMs 缺失或无效");
   }
+  if (raw.taskDbPath !== undefined && !isNonEmptyString(raw.taskDbPath)) {
+    throw new Error("taskDbPath 缺失或无效");
+  }
+  if (raw.taskMaxAttempts !== undefined && !isPositiveInteger(raw.taskMaxAttempts)) {
+    throw new Error("taskMaxAttempts 缺失或无效");
+  }
+  if (raw.taskRetryDelayMs !== undefined && !isPositiveInteger(raw.taskRetryDelayMs)) {
+    throw new Error("taskRetryDelayMs 缺失或无效");
+  }
+  if (raw.taskPollIntervalMs !== undefined && !isPositiveInteger(raw.taskPollIntervalMs)) {
+    throw new Error("taskPollIntervalMs 缺失或无效");
+  }
   if (!isNonEmptyString(raw.inputField)) {
     throw new Error("inputField 缺失或无效");
   }
@@ -97,6 +109,10 @@ export function parseConfig(raw: RawConfig): BridgeConfig {
     ekuaibaoAccessToken: isNonEmptyString(raw.ekuaibaoAccessToken) ? raw.ekuaibaoAccessToken : undefined,
     requireSignature: raw.requireSignature === undefined ? true : parseBoolean(raw.requireSignature, "requireSignature"),
     requestTimeoutMs: raw.requestTimeoutMs,
+    taskDbPath: isNonEmptyString(raw.taskDbPath) ? raw.taskDbPath : "data/bridge.sqlite",
+    taskMaxAttempts: typeof raw.taskMaxAttempts === "number" ? raw.taskMaxAttempts : 5,
+    taskRetryDelayMs: typeof raw.taskRetryDelayMs === "number" ? raw.taskRetryDelayMs : 60000,
+    taskPollIntervalMs: typeof raw.taskPollIntervalMs === "number" ? raw.taskPollIntervalMs : 5000,
     inputField: raw.inputField,
     responseMode: parseResponseMode(raw.responseMode ?? "auto"),
     jsonExtractPath: raw.jsonExtractPath,

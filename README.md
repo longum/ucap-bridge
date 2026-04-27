@@ -8,6 +8,7 @@
 - `POST /invoke`
 - 支持 UCAP 的 JSON 和 SSE 两种响应
 - 支持合思外部服务回调审批 `POST /api/openapi/v1/approval`
+- 使用 SQLite 持久化审批任务，服务重启后会继续处理未完成任务
 - 从 `config.json` 读取配置
 - 自动化测试覆盖配置、提取、SSE、JSON 和错误场景
 
@@ -30,6 +31,10 @@ cp config.example.json config.json
 - `ekuaibaoAppKey`
 - `ekuaibaoAppSecurity`
 - `requestTimeoutMs`
+- `taskDbPath`
+- `taskMaxAttempts`
+- `taskRetryDelayMs`
+- `taskPollIntervalMs`
 - `inputField`
 - `responseMode`
 - `jsonExtractPath`
@@ -46,6 +51,10 @@ cp config.example.json config.json
 - `ekuaibaoAppSecurity`: 合思开放接口接入密码，用于获取 `accessToken`
 - `requireSignature`: 是否校验调用本服务的入站签名；联调合思出站消息时可先设为 `false`
 - `requestTimeoutMs`: 上游请求超时时间
+- `taskDbPath`: 审批任务 SQLite 文件路径，默认 `data/bridge.sqlite`
+- `taskMaxAttempts`: 单个任务最大尝试次数
+- `taskRetryDelayMs`: 任务失败后的重试等待时间
+- `taskPollIntervalMs`: 后台 worker 轮询任务间隔
 - `inputField`: 调用方请求体里读取输入文本的字段名；设为 `$body` 时会把合思整段出站消息 body 传给 UCAP
 - `responseMode`: `auto`、`json` 或 `sse`
 - `jsonExtractPath`: JSON 模式下提取最终文本的点路径，例如 `data.answer`
@@ -177,6 +186,8 @@ POST {ekuaibaoBaseUrl}/api/openapi/v1/approval?accessToken={accessToken}
 ```
 
 这个 200 表示 bridge 已接收合思出站消息。实际审批通过或驳回会在后台通过合思审批回调接口完成。
+
+收到 `/invoke` 后，bridge 会先把任务写入 SQLite，再返回 200。后台 worker 会从 SQLite 中领取任务执行 UCAP 调用和合思审批回调；如果服务重启，未完成任务会在下次启动后继续处理。
 
 ## 返回格式
 

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/server";
 import { BridgeConfig } from "../src/types";
 import { buildRequestSignature } from "../src/signature";
+import { createMemoryTaskStore } from "./helpers";
 
 const config: BridgeConfig = {
   listenPort: 3000,
@@ -14,6 +15,10 @@ const config: BridgeConfig = {
   ekuaibaoAppSecurity: "app-security",
   requireSignature: true,
   requestTimeoutMs: 1000,
+  taskDbPath: "data/test.sqlite",
+  taskMaxAttempts: 5,
+  taskRetryDelayMs: 1000,
+  taskPollIntervalMs: 1000,
   inputField: "input",
   responseMode: "auto",
   jsonExtractPath: "data.answer",
@@ -23,19 +28,11 @@ const config: BridgeConfig = {
 
 describe("invoke json", () => {
   it("returns extracted JSON content", async () => {
-    const fetchImpl = vi.fn(async () => {
-      return new Response(JSON.stringify({ data: { answer: "最终文本" } }), {
-        status: 200,
-        headers: {
-          "content-type": "application/json",
-        },
-      });
-    });
-
+    const taskStore = createMemoryTaskStore();
     const timestamp = String(Date.now());
     const body = JSON.stringify({ input: "你好" });
 
-    const app = createApp(config, { fetchImpl });
+    const app = createApp(config, { taskStore, startWorker: false });
     const response = await app.inject({
       method: "POST",
       url: "/invoke",
@@ -52,16 +49,11 @@ describe("invoke json", () => {
       success: true,
       accepted: true,
     });
-    await vi.waitFor(() => {
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
-    });
-    expect(JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body))).toMatchObject({
-      agent_id: "agent-1",
+    expect(taskStore.tasks).toHaveLength(1);
+    expect(taskStore.tasks[0]).toMatchObject({
       input: "你好",
-      parameters: {
-        userChatInput: "你好",
-      },
-      vars: {},
+      rawBody: body,
+      status: "pending",
     });
 
     await app.close();

@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/server";
 import { BridgeConfig } from "../src/types";
 import { buildRequestSignature } from "../src/signature";
+import { createMemoryTaskStore } from "./helpers";
+import { ApprovalTaskWorker } from "../src/taskProcessor";
 
 const config: BridgeConfig = {
   listenPort: 3000,
@@ -14,6 +16,10 @@ const config: BridgeConfig = {
   ekuaibaoAppSecurity: "app-security",
   requireSignature: true,
   requestTimeoutMs: 1000,
+  taskDbPath: "data/test.sqlite",
+  taskMaxAttempts: 5,
+  taskRetryDelayMs: 1000,
+  taskPollIntervalMs: 1000,
   inputField: "input",
   responseMode: "auto",
   jsonExtractPath: "data.answer",
@@ -50,18 +56,10 @@ describe("errors", () => {
   });
 
   it("returns a clear error when JSON path is missing", async () => {
-    const fetchImpl = vi.fn(async () => {
-      return new Response(JSON.stringify({ data: {} }), {
-        status: 200,
-        headers: {
-          "content-type": "application/json",
-        },
-      });
-    });
-
+    const taskStore = createMemoryTaskStore();
     const body = JSON.stringify({ input: "你好" });
     const timestamp = String(Date.now());
-    const app = createApp(config, { fetchImpl });
+    const app = createApp(config, { taskStore, startWorker: false });
     const response = await app.inject({
       method: "POST",
       url: "/invoke",
@@ -78,9 +76,7 @@ describe("errors", () => {
       success: true,
       accepted: true,
     });
-    await vi.waitFor(() => {
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
-    });
+    expect(taskStore.tasks).toHaveLength(1);
 
     await app.close();
   });
@@ -113,21 +109,14 @@ describe("errors", () => {
   });
 
   it("accepts an arbitrary outbound body when signature is disabled and inputField is $body", async () => {
-    const fetchImpl = vi.fn(async () => {
-      return new Response(JSON.stringify({ data: { answer: "ok" } }), {
-        status: 200,
-        headers: {
-          "content-type": "application/json",
-        },
-      });
-    });
+    const taskStore = createMemoryTaskStore();
     const app = createApp(
       {
         ...config,
         requireSignature: false,
         inputField: "$body",
       },
-      { fetchImpl }
+      { taskStore, startWorker: false }
     );
 
     const body = JSON.stringify({
@@ -157,14 +146,10 @@ describe("errors", () => {
       success: true,
       accepted: true,
     });
-    await vi.waitFor(() => {
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
-    });
-    expect(JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body))).toMatchObject({
+    expect(taskStore.tasks).toHaveLength(1);
+    expect(taskStore.tasks[0]).toMatchObject({
       input: body,
-      parameters: {
-        userChatInput: body,
-      },
+      rawBody: body,
     });
 
     await app.close();
@@ -197,13 +182,14 @@ describe("errors", () => {
           },
         })
       );
+    const taskStore = createMemoryTaskStore();
     const app = createApp(
       {
         ...config,
         requireSignature: false,
         inputField: "$body",
       },
-      { fetchImpl }
+      { taskStore, startWorker: false }
     );
 
     const body = JSON.stringify({
@@ -230,9 +216,10 @@ describe("errors", () => {
       success: true,
       accepted: true,
     });
-    await vi.waitFor(() => {
-      expect(fetchImpl).toHaveBeenCalledTimes(3);
-    });
+    const worker = new ApprovalTaskWorker({ ...config, requireSignature: false, inputField: "$body" }, taskStore, { fetchImpl });
+    await worker.tick();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
     expect(String(fetchImpl.mock.calls[1]?.[0])).toContain("/api/openapi/v1/auth/getAccessToken");
     expect(JSON.parse(String((fetchImpl.mock.calls[1]?.[1] as RequestInit).body))).toMatchObject({
       appKey: "app-key",

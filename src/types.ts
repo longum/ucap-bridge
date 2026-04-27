@@ -12,6 +12,10 @@ export interface BridgeConfig {
   ekuaibaoAccessToken?: string;
   requireSignature: boolean;
   requestTimeoutMs: number;
+  taskDbPath: string;
+  taskMaxAttempts: number;
+  taskRetryDelayMs: number;
+  taskPollIntervalMs: number;
   inputField: string;
   responseMode: ResponseMode;
   jsonExtractPath: string;
@@ -31,6 +35,10 @@ export interface RawConfig {
   ekuaibaoAccessToken?: unknown;
   requireSignature?: unknown;
   requestTimeoutMs?: unknown;
+  taskDbPath?: unknown;
+  taskMaxAttempts?: unknown;
+  taskRetryDelayMs?: unknown;
+  taskPollIntervalMs?: unknown;
   inputField?: unknown;
   responseMode?: unknown;
   jsonExtractPath?: unknown;
@@ -63,4 +71,20 @@ export interface ApprovalDecision {
   action: ApprovalAction;
   comment: string;
   approved: boolean;
+}
+
+export type TaskStatus = "pending" | "processing" | "completed" | "failed";
+
+export interface ApprovalTask {
+  id: string;
+  status: TaskStatus;
+  traceId: string;
+  rawBody: string;
+  input: string;
+  attempts: number;
+  maxAttempts: number;
+  nextRunAt: number;
+  lastError?: string;
+  createdAt: number;
+  updatedAt: number;
 }

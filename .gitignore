@@ -1,6 +1,7 @@
 node_modules/
 dist/
 config.json
+data/
 .env
 .DS_Store
 npm-debug.log*
